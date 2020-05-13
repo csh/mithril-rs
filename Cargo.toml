@@ -1,0 +1,16 @@
+[package]
+name = "mithril"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "0.2", features = ["full"] }
+tokio-util = { version = "0.3", features = ["codec"] }
+anyhow = "1.0"
+bytes = "0.5"
+futures = "0.3"
+log = "0.4"
+simple_logger = "1"
+ctrlc = "3.1"
+crossbeam = "0.7"
