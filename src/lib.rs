@@ -1,10 +1,9 @@
 use anyhow::Context;
-
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 
-mod login_handler;
-mod worker;
+mod net;
+mod util;
 
 struct GameState {
     _runtime: Handle,
@@ -18,28 +17,9 @@ pub fn handle_shutdown(tx: crossbeam::Sender<()>) {
     .expect("Failed to set CTRL-C handler");
 }
 
-async fn run_listener(mut listener: TcpListener) {
-    loop {
-        let (stream, ip) = match listener.accept().await {
-            Ok(res) => res,
-            Err(e) => {
-                log::error!("Failed to accept connection; {}", e);
-                continue;
-            }
-        };
-        log::info!("New connection from {}", ip);
-        tokio::spawn(worker::run_worker(stream, ip));
-    }
-}
-
 pub async fn main(runtime: Handle) {
     let (shutdown_tx, shutdown_rx) = crossbeam::bounded(1);
     handle_shutdown(shutdown_tx);
-
-    let state = GameState {
-        _runtime: runtime,
-        shutdown_rx,
-    };
 
     let bind_addr = "0.0.0.0:43594";
     let listener = match TcpListener::bind(bind_addr)
@@ -54,11 +34,58 @@ pub async fn main(runtime: Handle) {
     };
 
     log::info!("Listening on {}", bind_addr);
-    tokio::spawn(run_listener(listener));
 
+    let network_manager = net::NetworkManager::start(listener);
+
+    let state = GameState {
+        _runtime: runtime,
+        shutdown_rx,
+    };
+
+    let state = run_game_thread(state).await;
+
+    // TODO: Shut down server gracefully
+
+    log::info!("Mithril is shutting down");
+    std::process::exit(0);
+}
+
+async fn run_game_thread(mut state: GameState) -> GameState {
+    use std::panic;
+    use tokio::sync::oneshot;
+
+    let (tx, rx) = oneshot::channel();
+
+    std::thread::Builder::new()
+        .name(String::from("mithril"))
+        .spawn(|| {
+            let panic = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+                run_loop(&mut state);
+            }));
+
+            match panic {
+                Ok(_) => (),
+                Err(_) => {
+                    log::error!("Mithril has crashed.");
+                }
+            }
+
+            tx.send(state).ok().expect("failed to exit server thread");
+        })
+        .expect("failed to spawn game logic thread");
+
+    rx.await.unwrap()
+}
+
+fn run_loop(state: &mut GameState) {
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(20 as f64);
     loop {
         if state.shutdown_rx.try_recv().is_ok() {
             return;
         }
+
+        loop_helper.loop_start();
+        // TODO: Implement game logic using Legion or Specs
+        loop_helper.loop_sleep();
     }
 }
