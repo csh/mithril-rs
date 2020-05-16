@@ -1,4 +1,4 @@
-use crate::util::RunescapeBuf;
+use crate::buf::GameBuf;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use super::packets::{
     Packet, cast_packet,

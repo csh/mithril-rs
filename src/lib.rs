@@ -3,7 +3,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 
 mod net;
-mod util;
+mod buf;
 
 struct GameState {
     _runtime: Handle,

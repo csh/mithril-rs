@@ -1,6 +1,6 @@
 use super::prelude::*;
 use crate::net::login_handler::LoginResult;
-use crate::util::RunescapeBuf;
+use crate::buf::GameBuf;
 
 #[derive(Default, Debug)]
 pub struct HandshakeHello {
