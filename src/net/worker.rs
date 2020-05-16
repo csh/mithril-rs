@@ -1,14 +1,14 @@
-use anyhow::Context;
+use std::net::SocketAddr;
+
+use bytes::BytesMut;
 use futures::{SinkExt, StreamExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::{BytesCodec, Framed};
 
-use std::net::SocketAddr;
-
-use bytes::BytesMut;
-
-use super::codec::RunescapeCodec;
+use super::codec::{RunescapeCodec, Stage};
 use super::login_handler::{Action, LoginHandler};
+use super::packets::Packet;
+use crate::net::login_handler::LoginResult;
 
 struct Worker {
     framed: Framed<TcpStream, RunescapeCodec>,
@@ -42,43 +42,46 @@ async fn run_worker_impl(worker: &mut Worker) -> anyhow::Result<()> {
     loop {
         let received_message = worker.framed.next().await;
         let read_result = received_message.ok_or_else(|| anyhow::anyhow!("disconnected"))?;
-
         let packet = read_result?;
-        log::debug!("{} sent {:?}", worker.ip, packet);
         handle_packet(worker, packet).await?;
         tokio::task::yield_now().await;
     }
 }
 
-async fn handle_packet(worker: &mut Worker, packet: BytesMut) -> anyhow::Result<()> {
+async fn handle_packet(worker: &mut Worker, packet: Box<dyn Packet>) -> anyhow::Result<()> {
     if let Some(ref mut login_handler) = worker.login_handler {
         login_handler.handle_packet(packet).await;
         handle_login_actions(worker).await?;
     } else {
+        // TODO: Push packet to server for handling
         todo!("decode remaining game packets");
     }
     Ok(())
 }
 
 async fn handle_login_actions(worker: &mut Worker) -> anyhow::Result<()> {
+    use super::packets::handshake::HandshakeConnectResponse;
+
     for action in worker.login_handler.as_mut().unwrap().actions_to_execute() {
         match action {
-            Action::SendPacket(packet) => worker.framed.send(packet).await?,
+            Action::SendPacket(packet) => {
+                worker.framed.send(packet).await?
+            },
             Action::Disconnect(result) => {
-                worker.framed.send(result.into()).await?;
+                worker.framed.send(Box::new(HandshakeConnectResponse(result))).await?;
+                worker.framed.close().await?;
                 anyhow::bail!("login handler requested disconnect");
             }
             Action::SetIsaac(server_key, client_key) => {
-                log::info!("ISAAC client key: {}", client_key);
-                log::info!("ISAAC server key: {}", server_key);
                 worker
                     .framed
                     .codec_mut()
                     .set_isaac_keys(server_key, client_key);
             }
             Action::Authenticate(_username, _password) => {
-                // TODO: Actually authenticate with the server via channels
-                log::info!("username: {}, password: {}", _username, _password);
+                worker.framed.send(Box::new(HandshakeConnectResponse(LoginResult::Success))).await?;
+                worker.framed.codec_mut().advance_stage();
+                // TODO: Communicate to server we wish to start playing
                 worker.login_handler = None;
             }
         }

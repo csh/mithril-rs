@@ -1,7 +1,13 @@
 use crate::util::RunescapeBuf;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
+use super::packets::{
+    Packet, cast_packet,
+    handshake::{
+        HandshakeHello, HandshakeAttemptConnect, HandshakeExchangeKey, HandshakeConnectResponse
+    },
+};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug)]
 enum Stage {
     AwaitingHandshake,
     AwaitingAuth,
@@ -9,6 +15,7 @@ enum Stage {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
 pub enum LoginResult {
     RetryCount,
     Handshake,
@@ -33,10 +40,9 @@ pub enum LoginResult {
     ProfileTransfer,
 }
 
-impl From<LoginResult> for Bytes {
+impl From<LoginResult> for u8 {
     fn from(result: LoginResult) -> Self {
-        let mut buf = BytesMut::with_capacity(1);
-        let response_code = match result {
+        match result {
             LoginResult::Handshake => 0,
             LoginResult::Retry => 1,
             LoginResult::Success => 2,
@@ -58,14 +64,12 @@ impl From<LoginResult> for Bytes {
             LoginResult::InvalidAuthServer => 20,
             LoginResult::ProfileTransfer => 21,
             LoginResult::RetryCount => 255,
-        };
-        buf.put_u8(response_code);
-        buf.freeze()
+        }
     }
 }
 
 pub enum Action {
-    SendPacket(Bytes),
+    SendPacket(Box<dyn Packet>),
     Disconnect(LoginResult),
     SetIsaac(u64, u64),
     Authenticate(String, String),
@@ -84,78 +88,26 @@ impl LoginHandler {
         }
     }
 
-    pub async fn handle_packet(&mut self, buf: BytesMut) {
-        if self.stage == Stage::Finished {
-            panic!("Login decoder already finished running");
-        }
-
+    pub async fn handle_packet(&mut self, packet: Box<dyn Packet>) {
         match self.stage {
-            Stage::AwaitingHandshake => self.handle_name_packet(buf),
-            Stage::AwaitingAuth => self.handle_auth_packet(buf),
-            _ => unreachable!(),
+            Stage::AwaitingHandshake => self.handle_name_packet(cast_packet::<HandshakeHello>(packet)),
+            Stage::AwaitingAuth => self.handle_connect_attempt(cast_packet::<HandshakeAttemptConnect>(packet)),
+            Stage::Finished => panic!("Login decoder already finished running"),
         }
     }
 
-    fn handle_name_packet(&mut self, mut buf: BytesMut) {
-        assert_eq!(14, buf.get_u8());
-        let name_hash = buf.get_u8();
-        let mut response = BytesMut::with_capacity(17);
-        response.put(&[0u8; 8][..]);
-        response.put_u8(0);
-        response.put_u64(1234);
-        self.action_queue
-            .push(Action::SendPacket(response.freeze()));
+    fn handle_name_packet(&mut self, packet: HandshakeHello) {
+        self.action_queue.push(Action::SendPacket(Box::new(HandshakeExchangeKey::default())));
         self.stage = Stage::AwaitingAuth;
     }
 
-    fn handle_auth_packet(&mut self, mut buf: BytesMut) {
-        let connection_type = buf.get_u8();
-        let login_length = buf.get_u8();
-
-        if !(connection_type == 16 || connection_type == 18) {
-            self.action_queue
-                .push(Action::Disconnect(LoginResult::SessionRejected));
-            return;
+    fn handle_connect_attempt(&mut self, packet: HandshakeAttemptConnect) {
+        if packet.is_reconnect {
+            // TODO: Implement reconnect logic
         }
 
-        assert!(
-            buf.remaining() >= login_length as usize,
-            "login_length mismatch"
-        );
-
-        let is_reconnect = connection_type == 18;
-        let version = 255 - buf.get_u8();
-        let release = buf.get_u16();
-        let memory = buf.get_u8();
-        let low_mem = memory == 1;
-        let crcs = (0..9).map(|_| buf.get_u32()).collect::<Vec<_>>();
-
-        let length = buf.get_u8();
-        if length != login_length - 41 {
-            self.action_queue
-                .push(Action::Disconnect(LoginResult::SessionRejected));
-            return;
-        }
-
-        assert_eq!(10, buf.get_u8());
-        let isaac_client_key = buf.get_u64();
-        let isaac_server_key = buf.get_u64();
-        self.action_queue
-            .push(Action::SetIsaac(isaac_server_key, isaac_client_key));
-
-        let user_id = buf.get_u32();
-        let username = buf.get_rs_string();
-        let password = buf.get_rs_string();
-        self.action_queue
-            .push(Action::Authenticate(username, password));
-
-        // TODO: Await authentication before sending this response
-        let mut response = BytesMut::new();
-        response.put_u8(2); // Success, allow login
-        response.put_u8(0);
-        response.put_u8(0);
-        self.action_queue
-            .push(Action::SendPacket(response.freeze()));
+        self.action_queue.push(Action::SetIsaac(packet.server_isaac_key, packet.client_isaac_key));
+        self.action_queue.push(Action::Authenticate(packet.username, packet.password));
         self.stage = Stage::Finished;
     }
 
