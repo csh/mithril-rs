@@ -2,8 +2,8 @@ use tokio::net::TcpListener;
 
 mod codec;
 mod login_handler;
-mod worker;
 mod packets;
+mod worker;
 
 pub struct NetworkManager {
     pub rx: crossbeam::Receiver<()>,

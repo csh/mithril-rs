@@ -54,7 +54,10 @@ async fn handle_packet(worker: &mut Worker, packet: Box<dyn Packet>) -> anyhow::
         handle_login_actions(worker).await?;
     } else {
         // TODO: Push packet to server for handling
-        worker.framed.send(Box::new(crate::net::packets::game::IdAssignment)).await?;
+        worker
+            .framed
+            .send(Box::new(crate::net::packets::game::IdAssignment))
+            .await?;
     }
     Ok(())
 }
@@ -64,11 +67,12 @@ async fn handle_login_actions(worker: &mut Worker) -> anyhow::Result<()> {
 
     for action in worker.login_handler.as_mut().unwrap().actions_to_execute() {
         match action {
-            Action::SendPacket(packet) => {
-                worker.framed.send(packet).await?
-            },
+            Action::SendPacket(packet) => worker.framed.send(packet).await?,
             Action::Disconnect(result) => {
-                worker.framed.send(Box::new(HandshakeConnectResponse(result))).await?;
+                worker
+                    .framed
+                    .send(Box::new(HandshakeConnectResponse(result)))
+                    .await?;
                 worker.framed.close().await?;
                 anyhow::bail!("login handler requested disconnect");
             }
@@ -79,7 +83,10 @@ async fn handle_login_actions(worker: &mut Worker) -> anyhow::Result<()> {
                     .set_isaac_keys(server_key, client_key);
             }
             Action::Authenticate(_username, _password) => {
-                worker.framed.send(Box::new(HandshakeConnectResponse(LoginResult::Success))).await?;
+                worker
+                    .framed
+                    .send(Box::new(HandshakeConnectResponse(LoginResult::Success)))
+                    .await?;
                 worker.framed.codec_mut().advance_stage();
                 // TODO: Communicate to server we wish to start playing
                 worker.login_handler = None;

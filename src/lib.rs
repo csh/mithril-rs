@@ -2,9 +2,9 @@ use anyhow::Context;
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 
-mod util;
-mod net;
 mod buf;
+mod net;
+mod util;
 
 struct GameState {
     _runtime: Handle,

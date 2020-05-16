@@ -1,17 +1,13 @@
 const FREQUENCY_ORDERED_CHARS: [char; 61] = [
-    ' ', 'e', 't', 'a', 'o', 'i', 'h', 'n', 's', 'r', 'd', 'l',
-    'u', 'm', 'w', 'c', 'y', 'f', 'g', 'p', 'b', 'v', 'k', 'x',
-    'j', 'q', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8',
-    '9', ' ', '!', '?', '.', ',', ':', ';', '(', ')', '-', '&',
-    '*', '\\', '\'', '@', '#', '+', '=', '\u{0243}', '$', '%', '"',
-    '[', ']'
+    ' ', 'e', 't', 'a', 'o', 'i', 'h', 'n', 's', 'r', 'd', 'l', 'u', 'm', 'w', 'c', 'y', 'f', 'g',
+    'p', 'b', 'v', 'k', 'x', 'j', 'q', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' ',
+    '!', '?', '.', ',', ':', ';', '(', ')', '-', '&', '*', '\\', '\'', '@', '#', '+', '=',
+    '\u{0243}', '$', '%', '"', '[', ']',
 ];
 
 const VALID_NAME_CHARS: [char; 37] = [
-    '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
-    'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
-    't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2',
-    '3', '4', '5', '6', '7', '8', '9'
+    '_', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+    's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 ];
 
 pub fn encode_base37<T: AsRef<str>>(input: T) -> u64 {
@@ -21,7 +17,7 @@ pub fn encode_base37<T: AsRef<str>>(input: T) -> u64 {
             'A'..='Z' => acc + (c as u64 - 65) + 1,
             'a'..='z' => acc + (c as u64 - 97) + 1,
             '0'..='9' => acc + (c as u64 - 48) + 27,
-            _ => acc
+            _ => acc,
         }
     });
 
@@ -61,7 +57,10 @@ pub fn decompress(input: &[u8], len: usize) -> String {
                 carry = table_pos as i32;
             }
         } else {
-            out.insert(position, FREQUENCY_ORDERED_CHARS[((carry << 4) as usize + table_pos as usize - 195)]);
+            out.insert(
+                position,
+                FREQUENCY_ORDERED_CHARS[((carry << 4) as usize + table_pos as usize - 195)],
+            );
             position += 1;
             carry = -1;
         }

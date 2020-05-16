@@ -1,10 +1,10 @@
 use super::prelude::*;
-use crate::net::login_handler::LoginResult;
 use crate::buf::GameBuf;
+use crate::net::login_handler::LoginResult;
 
 #[derive(Default, Debug)]
 pub struct HandshakeHello {
-    pub name_hash: u8
+    pub name_hash: u8,
 }
 
 impl Packet for HandshakeHello {
@@ -69,7 +69,7 @@ impl Default for HandshakeExchangeKey {
     fn default() -> Self {
         HandshakeExchangeKey {
             session_key: rand::random::<u64>(),
-            response_code: LoginResult::Handshake
+            response_code: LoginResult::Handshake,
         }
     }
 }

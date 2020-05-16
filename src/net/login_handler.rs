@@ -1,11 +1,12 @@
+use super::packets::{
+    cast_packet,
+    handshake::{
+        HandshakeAttemptConnect, HandshakeConnectResponse, HandshakeExchangeKey, HandshakeHello,
+    },
+    Packet,
+};
 use crate::buf::GameBuf;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use super::packets::{
-    Packet, cast_packet,
-    handshake::{
-        HandshakeHello, HandshakeAttemptConnect, HandshakeExchangeKey, HandshakeConnectResponse
-    },
-};
 
 #[derive(Debug)]
 enum Stage {
@@ -90,14 +91,20 @@ impl LoginHandler {
 
     pub async fn handle_packet(&mut self, packet: Box<dyn Packet>) {
         match self.stage {
-            Stage::AwaitingHandshake => self.handle_name_packet(cast_packet::<HandshakeHello>(packet)),
-            Stage::AwaitingAuth => self.handle_connect_attempt(cast_packet::<HandshakeAttemptConnect>(packet)),
+            Stage::AwaitingHandshake => {
+                self.handle_name_packet(cast_packet::<HandshakeHello>(packet))
+            }
+            Stage::AwaitingAuth => {
+                self.handle_connect_attempt(cast_packet::<HandshakeAttemptConnect>(packet))
+            }
             Stage::Finished => panic!("Login decoder already finished running"),
         }
     }
 
     fn handle_name_packet(&mut self, packet: HandshakeHello) {
-        self.action_queue.push(Action::SendPacket(Box::new(HandshakeExchangeKey::default())));
+        self.action_queue.push(Action::SendPacket(
+            Box::new(HandshakeExchangeKey::default()),
+        ));
         self.stage = Stage::AwaitingAuth;
     }
 
@@ -106,8 +113,12 @@ impl LoginHandler {
             // TODO: Implement reconnect logic
         }
 
-        self.action_queue.push(Action::SetIsaac(packet.server_isaac_key, packet.client_isaac_key));
-        self.action_queue.push(Action::Authenticate(packet.username, packet.password));
+        self.action_queue.push(Action::SetIsaac(
+            packet.server_isaac_key,
+            packet.client_isaac_key,
+        ));
+        self.action_queue
+            .push(Action::Authenticate(packet.username, packet.password));
         self.stage = Stage::Finished;
     }
 

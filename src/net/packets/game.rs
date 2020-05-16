@@ -17,7 +17,7 @@ macro_rules! read_base37_username_only {
                 PacketType::$name
             }
         }
-    }
+    };
 }
 
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl Packet for KeepAlive {
 
 #[derive(Debug, Default)]
 pub struct FocusUpdate {
-    pub in_focus: bool
+    pub in_focus: bool,
 }
 
 impl Packet for FocusUpdate {
@@ -186,7 +186,7 @@ impl Packet for PlayerAction {
 
 #[derive(Debug, Default)]
 pub struct DialogueContinue {
-    pub interface_id: u16
+    pub interface_id: u16,
 }
 
 impl Packet for DialogueContinue {
@@ -207,7 +207,7 @@ read_base37_username_only!(RemoveIgnore);
 
 #[derive(Debug, Default)]
 pub struct Button {
-    pub interface_id: u16
+    pub interface_id: u16,
 }
 
 impl Packet for Button {
@@ -461,7 +461,7 @@ impl Packet for SpamPacket {
     }
 }
 
-#[derive(Debug,Default)]
+#[derive(Debug, Default)]
 pub struct TakeTileItem {
     pub x: u16,
     pub y: u16,
@@ -486,7 +486,7 @@ pub struct MouseClicked {
     pub delay: u64,
     pub right_click: bool,
     pub x: u32,
-    pub y: u32
+    pub y: u32,
 }
 
 impl Packet for MouseClicked {
@@ -530,7 +530,7 @@ impl Packet for PlayerDesign {
 
 #[derive(Debug, Default)]
 pub struct Walk {
-    pub path: Vec<(i16, i16)>
+    pub path: Vec<(i16, i16)>,
 }
 
 impl Packet for Walk {
@@ -540,20 +540,15 @@ impl Packet for Walk {
         let mut path: Vec<(i16, i16)> = Vec::with_capacity(steps + 1);
         let x = src.get_u16t_le(Transform::Add);
         for i in 0..steps {
-            path.insert(i, (
-                src.get_i8() as i16,
-                src.get_i8() as i16
-            ))
+            path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
         }
         let y = src.get_u16_le();
         let running = src.get_u8t(Transform::Negate) == 1;
         path.insert(0, (x as i16, y as i16));
-        self.path = path.iter().map(|(a, b)| {
-            (
-                a + x as i16,
-                b + y as i16
-            )
-        }).collect::<Vec<_>>();
+        self.path = path
+            .iter()
+            .map(|(a, b)| (a + x as i16, b + y as i16))
+            .collect::<Vec<_>>();
         Ok(())
     }
 
@@ -564,7 +559,7 @@ impl Packet for Walk {
 
 #[derive(Debug, Default)]
 pub struct WalkWithAnticheat {
-    pub path: Vec<(i16, i16)>
+    pub path: Vec<(i16, i16)>,
 }
 
 impl Packet for WalkWithAnticheat {
@@ -574,20 +569,15 @@ impl Packet for WalkWithAnticheat {
         let mut path: Vec<(i16, i16)> = Vec::with_capacity(steps + 1);
         let x = src.get_u16t_le(Transform::Add);
         for i in 0..steps {
-            path.insert(i, (
-                src.get_i8() as i16,
-                src.get_i8() as i16
-            ))
+            path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
         }
         let y = src.get_u16_le();
         let running = src.get_u8t(Transform::Negate) == 1;
         path.insert(0, (x as i16, y as i16));
-        self.path = path.iter().map(|(a, b)| {
-            (
-                a + x as i16,
-                b + y as i16
-            )
-        }).collect::<Vec<_>>();
+        self.path = path
+            .iter()
+            .map(|(a, b)| (a + x as i16, b + y as i16))
+            .collect::<Vec<_>>();
         Ok(())
     }
 

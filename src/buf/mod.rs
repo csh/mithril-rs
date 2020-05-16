@@ -8,5 +8,5 @@ pub use write::GameBufMut;
 pub enum Transform {
     Add,
     Subtract,
-    Negate
+    Negate,
 }

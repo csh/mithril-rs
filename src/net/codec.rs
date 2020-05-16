@@ -29,7 +29,9 @@ impl RunescapeCodec {
         log::debug!("Enabling processing of gameplay packets");
         match self.stage {
             Stage::Handshake => self.stage = Stage::Gameplay,
-            Stage::Gameplay => unreachable!("advance_stage() should only be called once after the login sequence has finished"),
+            Stage::Gameplay => unreachable!(
+                "advance_stage() should only be called once after the login sequence has finished"
+            ),
         }
     }
 
@@ -71,7 +73,10 @@ impl Encoder<Box<dyn Packet>> for RunescapeCodec {
         match self.stage {
             Stage::Handshake => item.try_write(dst),
             Stage::Gameplay => {
-                let isaac = self.encoding_rng.as_mut().expect("ISAAC has not been configured");
+                let isaac = self
+                    .encoding_rng
+                    .as_mut()
+                    .expect("ISAAC has not been configured");
                 let packet_type = item.get_type();
                 let mut encoding_buf = BytesMut::new();
                 item.try_write(&mut encoding_buf)?;
@@ -100,12 +105,23 @@ impl Decoder for RunescapeCodec {
             let packet_type = match self.stage {
                 Stage::Handshake => {
                     // TODO: Figure out a more elegant solution than peeking packet_id
-                    PacketType::get_from_id(PacketId::new(packet_id, PacketDirection::Serverbound, PacketStage::Handshake))
+                    PacketType::get_from_id(PacketId::new(
+                        packet_id,
+                        PacketDirection::Serverbound,
+                        PacketStage::Handshake,
+                    ))
                 }
                 Stage::Gameplay => {
-                    let isaac = self.decoding_rng.as_mut().expect("ISAAC has not been configured");
+                    let isaac = self
+                        .decoding_rng
+                        .as_mut()
+                        .expect("ISAAC has not been configured");
                     let decoded_id = buf.get_u8().wrapping_sub(isaac.gen::<u8>());
-                    PacketType::get_from_id(PacketId::new(decoded_id, PacketDirection::Serverbound, PacketStage::Gameplay))
+                    PacketType::get_from_id(PacketId::new(
+                        decoded_id,
+                        PacketDirection::Serverbound,
+                        PacketStage::Gameplay,
+                    ))
                 }
             };
 
@@ -120,7 +136,10 @@ impl Decoder for RunescapeCodec {
                     Ok(Some(packet))
                 }
                 None => {
-                    log::warn!("Received unknown packet ID; skipping packet {:02X}", packet_id);
+                    log::warn!(
+                        "Received unknown packet ID; skipping packet {:02X}",
+                        packet_id
+                    );
                     src.advance(src.len());
                     Ok(None)
                 }
