@@ -54,7 +54,7 @@ async fn handle_packet(worker: &mut Worker, packet: Box<dyn Packet>) -> anyhow::
         handle_login_actions(worker).await?;
     } else {
         // TODO: Push packet to server for handling
-        todo!("decode remaining game packets");
+        worker.framed.send(Box::new(crate::net::packets::game::IdAssignment)).await?;
     }
     Ok(())
 }

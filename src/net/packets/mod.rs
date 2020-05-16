@@ -5,10 +5,11 @@ use bytes::BytesMut;
 use once_cell::sync::Lazy;
 
 pub mod handshake;
+pub mod game;
 
 mod prelude {
     pub use bytes::{Buf, BufMut, BytesMut};
-
+    pub use crate::buf::*;
     pub use super::{Packet, PacketType};
 }
 
@@ -236,6 +237,10 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     packets.insert(PacketId::new(252, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::SecondObjectAction);
     // endregion
 
+    // region Gameplay clientbound packets
+    packets.insert(PacketId::new(249, PacketDirection::Clientbound, PacketStage::Gameplay), PacketType::IdAssignment);
+    //endregion
+
     packets
 });
 
@@ -264,6 +269,27 @@ static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|
         }),
     );
 
+    factories.insert(
+        PacketType::KeepAlive,
+        PacketFactory::new(|| {
+            Box::new(game::KeepAlive)
+        }),
+    );
+
+    factories.insert(
+        PacketType::PublicChat,
+        PacketFactory::new(|| {
+            Box::new(game::PublicChat::default())
+        }),
+    );
+
+    factories.insert(
+        PacketType::AddFriend,
+        PacketFactory::new(|| {
+            Box::new(game::AddFriend::default())
+        })
+    );
+
     factories
 });
 
@@ -284,7 +310,19 @@ impl PacketType {
     }
 
     pub fn is_variable_length(&self) -> bool {
-        false
+        match self {
+            PacketType::PublicChat => true,
+            PacketType::FlaggedMouseEvent => true,
+            PacketType::SpamPacket => true,
+            PacketType::Walk => true,
+            PacketType::Command => true,
+            PacketType::PrivateChat => true,
+            PacketType::Walk => true,
+            PacketType::SpamPacket => true,
+            PacketType::SpamPacket => true,
+            PacketType::Walk => true,
+            _ => false
+        }
     }
 }
 

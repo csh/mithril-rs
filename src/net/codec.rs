@@ -75,7 +75,7 @@ impl Encoder<Box<dyn Packet>> for RunescapeCodec {
                 let packet_type = item.get_type();
                 let mut encoding_buf = BytesMut::new();
                 item.try_write(&mut encoding_buf)?;
-                let packet_id = packet_type.get_id().id + isaac.gen::<u8>();
+                let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
                 dst.put_u8(packet_id);
                 if packet_type.is_variable_length() {
                     dst.put_u8(encoding_buf.len() as u8);
@@ -104,7 +104,7 @@ impl Decoder for RunescapeCodec {
                 }
                 Stage::Gameplay => {
                     let isaac = self.decoding_rng.as_mut().expect("ISAAC has not been configured");
-                    let decoded_id = buf.get_u8() - isaac.gen::<u8>();
+                    let decoded_id = buf.get_u8().wrapping_sub(isaac.gen::<u8>());
                     PacketType::get_from_id(PacketId::new(decoded_id, PacketDirection::Serverbound, PacketStage::Gameplay))
                 }
             };
@@ -112,6 +112,9 @@ impl Decoder for RunescapeCodec {
             match packet_type {
                 Some(packet_type) => {
                     log::debug!("We received a {:?}", packet_type);
+                    if packet_type.is_variable_length() {
+                        log::debug!("Packet length is {}", buf.get_u8());
+                    }
                     let mut packet = packet_type.create().context("packet construction failed")?;
                     packet.try_read(&mut buf).context("packet read failed")?;
                     Ok(Some(packet))
