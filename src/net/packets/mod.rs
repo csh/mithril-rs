@@ -31,12 +31,6 @@ impl PacketId {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub enum PacketLength {
-    Fixed(u8),
-    Variable,
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PacketDirection {
     Clientbound,
     Serverbound,
@@ -108,6 +102,7 @@ pub enum PacketType {
     MagicOnItem,
     MouseClicked,
     Walk,
+    WalkWithAnticheat,
     MagicOnPlayer,
     SecondObjectAction,
     // endregion
@@ -161,6 +156,50 @@ pub enum PacketType {
     OpenDialogueOverlay,
     OpenSidebar,
     // endregion
+}
+
+macro_rules! item_option_factory {
+    ($map:ident, $opt:ident) => {
+        $map.insert(
+            PacketType::$opt,
+            PacketFactory::new(|| {
+                Box::new(game::ItemOption {
+                    packet_type: PacketType::$opt,
+                    interface_id: 0,
+                    item_id: 0,
+                    slot: 0
+                })
+            })
+        );
+    }
+}
+
+macro_rules! npc_option_factory {
+    ($map:ident, $opt:ident) => {
+        $map.insert(
+            PacketType::$opt,
+            PacketFactory::new(|| {
+                Box::new(game::NpcAction {
+                    packet_type: PacketType::$opt,
+                    index: 0
+                })
+            })
+        )
+    }
+}
+
+macro_rules! player_action_factory {
+    ($map:ident, $opt:ident) => {
+        $map.insert(
+            PacketType::$opt,
+            PacketFactory::new(|| {
+                Box::new(game::PlayerAction {
+                    packet_type: PacketType::$opt,
+                    index: 0
+                })
+            })
+        )
+    }
 }
 
 static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
@@ -232,12 +271,13 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     packets.insert(PacketId::new(236, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::TakeTileItem);
     packets.insert(PacketId::new(237, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::MagicOnItem);
     packets.insert(PacketId::new(241, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::MouseClicked);
-    packets.insert(PacketId::new(248, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::Walk);
+    packets.insert(PacketId::new(248, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::WalkWithAnticheat);
     packets.insert(PacketId::new(249, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::MagicOnPlayer);
     packets.insert(PacketId::new(252, PacketDirection::Serverbound, PacketStage::Gameplay), PacketType::SecondObjectAction);
     // endregion
 
     // region Gameplay clientbound packets
+    packets.insert(PacketId::new(206, PacketDirection::Clientbound, PacketStage::Gameplay), PacketType::PrivacyOption);
     packets.insert(PacketId::new(249, PacketDirection::Clientbound, PacketStage::Gameplay), PacketType::IdAssignment);
     //endregion
 
@@ -284,11 +324,203 @@ static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|
     );
 
     factories.insert(
+        PacketType::PrivateChat,
+        PacketFactory::new(|| {
+            Box::new(game::PrivateChat::default())
+        }),
+    );
+
+    factories.insert(
         PacketType::AddFriend,
         PacketFactory::new(|| {
             Box::new(game::AddFriend::default())
         })
     );
+
+    factories.insert(
+        PacketType::AddIgnore,
+        PacketFactory::new(|| {
+            Box::new(game::AddIgnore::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::RemoveIgnore,
+        PacketFactory::new(|| {
+            Box::new(game::RemoveIgnore::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::RemoveFriend,
+        PacketFactory::new(|| {
+            Box::new(game::RemoveFriend::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::Button,
+        PacketFactory::new(|| {
+            Box::new(game::Button::default())
+        })
+    );
+
+    item_option_factory!(factories, FirstItemOption);
+    item_option_factory!(factories, SecondItemOption);
+    item_option_factory!(factories, ThirdItemOption);
+    item_option_factory!(factories, FourthItemOption);
+    item_option_factory!(factories, FifthItemOption);
+
+    npc_option_factory!(factories, FirstNpcAction);
+    npc_option_factory!(factories, SecondNpcAction);
+    npc_option_factory!(factories, ThirdNpcAction);
+    npc_option_factory!(factories, FourthNpcAction);
+    npc_option_factory!(factories, FifthNpcAction);
+
+    player_action_factory!(factories, FirstPlayerAction);
+    player_action_factory!(factories, SecondPlayerAction);
+    player_action_factory!(factories, ThirdPlayerAction);
+    player_action_factory!(factories, FourthPlayerAction);
+    player_action_factory!(factories, FifthPlayerAction);
+
+    factories.insert(
+        PacketType::DialogueContinue,
+        PacketFactory::new(|| {
+            Box::new(game::DialogueContinue::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ItemOnItem,
+        PacketFactory::new(|| {
+            Box::new(game::ItemOnItem::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ItemOnObject,
+        PacketFactory::new(|| {
+            Box::new(game::ItemOnObject::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ItemOnNpc,
+        PacketFactory::new(|| {
+            Box::new(game::ItemOnNpc::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::PrivacyOption,
+        PacketFactory::new(|| {
+            Box::new(game::PrivacyOption::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::Command,
+        PacketFactory::new(|| {
+            Box::new(game::Command::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::FlashingTabClicked,
+        PacketFactory::new(|| {
+            Box::new(game::FlashingTabClicked::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ClosedInterface,
+        PacketFactory::new(|| {
+            Box::new(game::ClosedInterface::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::MagicOnNpc,
+        PacketFactory::new(|| {
+            Box::new(game::MagicOnNpc::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::MagicOnItem,
+        PacketFactory::new(|| {
+            Box::new(game::MagicOnItem::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::MagicOnPlayer,
+        PacketFactory::new(|| {
+            Box::new(game::MagicOnPlayer::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ArrowKey,
+        PacketFactory::new(|| {
+            Box::new(game::ArrowKey::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::EnteredAmount,
+        PacketFactory::new(|| {
+            Box::new(game::EnteredAmount::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::ReportAbuse,
+        PacketFactory::new(|| {
+            Box::new(game::ReportAbuse::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::SpamPacket,
+        PacketFactory::new(|| {
+            Box::new(game::SpamPacket::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::TakeTileItem,
+        PacketFactory::new(|| {
+            Box::new(game::TakeTileItem::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::MouseClicked,
+        PacketFactory::new(|| {
+            Box::new(game::MouseClicked::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::PlayerDesign,
+        PacketFactory::new(|| {
+            Box::new(game::PlayerDesign::default())
+        })
+    );
+
+    factories.insert(
+        PacketType::Walk,
+        PacketFactory::new(|| {
+            Box::new(game::Walk::default())
+        })
+    );
+
+    let serverbound_count = PACKET_TYPE_MAP.values().filter(|id| match id.direction {
+        PacketDirection::Serverbound => true,
+        PacketDirection::Clientbound => false,
+    }).collect::<Vec<_>>().len();
+    log::debug!("You have implemented {}/{} serverbound packets so far :'(", factories.len(), serverbound_count);
 
     factories
 });
