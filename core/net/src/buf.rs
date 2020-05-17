@@ -1,8 +1,8 @@
-mod read;
-mod write;
-
 pub use read::GameBuf;
 pub use write::GameBufMut;
+
+mod read;
+mod write;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Transform {

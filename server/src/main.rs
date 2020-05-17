@@ -1,10 +1,9 @@
+extern crate mithril_server_net as net;
+
 use anyhow::Context;
 use tokio::net::TcpListener;
+use tokio::runtime;
 use tokio::runtime::Handle;
-
-mod buf;
-mod net;
-mod util;
 
 struct GameState {
     _runtime: Handle,
@@ -18,7 +17,7 @@ pub fn handle_shutdown(tx: crossbeam::Sender<()>) {
     .expect("Failed to set CTRL-C handler");
 }
 
-pub async fn main(runtime: Handle) {
+pub async fn run(runtime: Handle) {
     let (shutdown_tx, shutdown_rx) = crossbeam::bounded(1);
     handle_shutdown(shutdown_tx);
 
@@ -89,4 +88,20 @@ fn run_loop(state: &mut GameState) {
         // TODO: Implement game logic using Legion or Specs
         loop_helper.loop_sleep();
     }
+}
+
+fn main() {
+    simple_logger::init_with_level(log::Level::Debug).expect("Failed to init logging");
+
+    let mut runtime = runtime::Builder::new()
+        .threaded_scheduler()
+        .thread_name("mithril-worker-pool")
+        .enable_all()
+        .build()
+        .expect("failed to start tokio runtime");
+
+    let handle = runtime.handle().clone();
+    runtime.block_on(async move {
+        run(handle).await;
+    });
 }

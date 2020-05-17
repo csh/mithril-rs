@@ -1,0 +1,14 @@
+[package]
+name = "mithril-server-net"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[dependencies]
+tokio = { version = "0.2", features = ["tcp", "rt-core"] }
+tokio-util = { version = "0.3", features = ["codec"] }
+mithril-core = { path = "../../core" }
+crossbeam = "0.7"
+futures = "0.3"
+anyhow = "1.0"
+log = "0.4"

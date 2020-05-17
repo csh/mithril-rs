@@ -1,8 +1,5 @@
 use tokio::net::TcpListener;
 
-mod codec;
-mod login_handler;
-mod packets;
 mod worker;
 
 pub struct NetworkManager {

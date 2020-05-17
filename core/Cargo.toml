@@ -1,0 +1,8 @@
+[package]
+name = "mithril-core"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[dependencies]
+mithril-net = { path = "net" }

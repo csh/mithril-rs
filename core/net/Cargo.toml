@@ -1,0 +1,17 @@
+[package]
+name = "mithril-net"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[dependencies]
+mithril-text = { path = "../text" }
+
+tokio-util = { version = "0.3", features = ["codec"] }
+rand_isaac = "0.2"
+once_cell = "1.4"
+anyhow = "1.0"
+bytes = "0.5"
+ahash = "0.3"
+rand = "0.7"
+log = "0.4"

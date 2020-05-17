@@ -1,6 +1,33 @@
-use super::prelude::*;
 use crate::buf::GameBuf;
-use crate::net::login_handler::LoginResult;
+
+use super::prelude::*;
+
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy)]
+pub enum LoginResponse {
+    Handshake = 0,
+    Retry = 1,
+    Success = 2,
+    InvalidCredentials = 3,
+    AccountDisabled = 4,
+    AlreadyLoggedIn = 5,
+    GameUpdate = 6,
+    WorldFull = 7,
+    OfflineAuthServer = 8,
+    ThrottleAddress = 9,
+    SessionBad = 10,
+    SessionRejected = 11,
+    MembersWorld = 12,
+    LoginIncomplete = 13,
+    ServerUpdate = 14,
+    Reconnect = 15,
+    ThrottleAuth = 16,
+    MembersArea = 17,
+    InvalidAuthServer = 20,
+    ProfileTransfer = 21,
+    RetryCount = 255,
+    Unknown = 254,
+}
 
 #[derive(Default, Debug)]
 pub struct HandshakeHello {
@@ -62,14 +89,14 @@ impl Packet for HandshakeAttemptConnect {
 #[derive(Debug)]
 pub struct HandshakeExchangeKey {
     session_key: u64,
-    response_code: LoginResult,
+    response_code: LoginResponse,
 }
 
 impl Default for HandshakeExchangeKey {
     fn default() -> Self {
         HandshakeExchangeKey {
             session_key: rand::random::<u64>(),
-            response_code: LoginResult::Handshake,
+            response_code: LoginResponse::Handshake,
         }
     }
 }
@@ -77,7 +104,7 @@ impl Default for HandshakeExchangeKey {
 impl Packet for HandshakeExchangeKey {
     fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
         src.put_slice(&[0; 8]);
-        src.put_u8(self.response_code.into());
+        src.put_u8(self.response_code as u8);
         src.put_u64(self.session_key);
         Ok(())
     }
@@ -88,11 +115,17 @@ impl Packet for HandshakeExchangeKey {
 }
 
 #[derive(Debug)]
-pub struct HandshakeConnectResponse(pub LoginResult);
+pub struct HandshakeConnectResponse(pub LoginResponse);
+
+impl Default for HandshakeConnectResponse {
+    fn default() -> Self {
+        HandshakeConnectResponse(LoginResponse::Success)
+    }
+}
 
 impl Packet for HandshakeConnectResponse {
     fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        src.put_u8(self.0.into());
+        src.put_u8(self.0 as u8);
         src.put_u8(0);
         src.put_u8(0);
         Ok(())

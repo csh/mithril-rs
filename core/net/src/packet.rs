@@ -4,15 +4,6 @@ use ahash::AHashMap;
 use bytes::BytesMut;
 use once_cell::sync::Lazy;
 
-pub mod game;
-pub mod handshake;
-
-mod prelude {
-    pub use super::{Packet, PacketType};
-    pub use crate::buf::*;
-    pub use bytes::{Buf, BufMut, BytesMut};
-}
-
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PacketId {
     pub id: u8,
@@ -156,50 +147,6 @@ pub enum PacketType {
     OpenDialogueOverlay,
     OpenSidebar,
     // endregion
-}
-
-macro_rules! item_option_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::ItemOption {
-                    packet_type: PacketType::$opt,
-                    interface_id: 0,
-                    item_id: 0,
-                    slot: 0,
-                })
-            }),
-        );
-    };
-}
-
-macro_rules! npc_option_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::NpcAction {
-                    packet_type: PacketType::$opt,
-                    index: 0,
-                })
-            }),
-        )
-    };
-}
-
-macro_rules! player_action_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::PlayerAction {
-                    packet_type: PacketType::$opt,
-                    index: 0,
-                })
-            }),
-        )
-    };
 }
 
 static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
@@ -496,189 +443,6 @@ static PACKET_TYPE_MAP: Lazy<AHashMap<PacketType, PacketId>> = Lazy::new(|| {
     packets
 });
 
-static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|| {
-    let mut factories = AHashMap::new();
-
-    factories.insert(
-        PacketType::HandshakeHello,
-        PacketFactory::new(|| Box::new(handshake::HandshakeHello::default())),
-    );
-
-    factories.insert(
-        PacketType::HandshakeAttemptConnect,
-        PacketFactory::new(|| Box::new(handshake::HandshakeAttemptConnect::default())),
-    );
-
-    factories.insert(
-        PacketType::KeepAlive,
-        PacketFactory::new(|| Box::new(game::KeepAlive)),
-    );
-
-    factories.insert(
-        PacketType::PublicChat,
-        PacketFactory::new(|| Box::new(game::PublicChat::default())),
-    );
-
-    factories.insert(
-        PacketType::PrivateChat,
-        PacketFactory::new(|| Box::new(game::PrivateChat::default())),
-    );
-
-    factories.insert(
-        PacketType::AddFriend,
-        PacketFactory::new(|| Box::new(game::AddFriend::default())),
-    );
-
-    factories.insert(
-        PacketType::AddIgnore,
-        PacketFactory::new(|| Box::new(game::AddIgnore::default())),
-    );
-
-    factories.insert(
-        PacketType::RemoveIgnore,
-        PacketFactory::new(|| Box::new(game::RemoveIgnore::default())),
-    );
-
-    factories.insert(
-        PacketType::RemoveFriend,
-        PacketFactory::new(|| Box::new(game::RemoveFriend::default())),
-    );
-
-    factories.insert(
-        PacketType::Button,
-        PacketFactory::new(|| Box::new(game::Button::default())),
-    );
-
-    item_option_factory!(factories, FirstItemOption);
-    item_option_factory!(factories, SecondItemOption);
-    item_option_factory!(factories, ThirdItemOption);
-    item_option_factory!(factories, FourthItemOption);
-    item_option_factory!(factories, FifthItemOption);
-
-    npc_option_factory!(factories, FirstNpcAction);
-    npc_option_factory!(factories, SecondNpcAction);
-    npc_option_factory!(factories, ThirdNpcAction);
-    npc_option_factory!(factories, FourthNpcAction);
-    npc_option_factory!(factories, FifthNpcAction);
-
-    player_action_factory!(factories, FirstPlayerAction);
-    player_action_factory!(factories, SecondPlayerAction);
-    player_action_factory!(factories, ThirdPlayerAction);
-    player_action_factory!(factories, FourthPlayerAction);
-    player_action_factory!(factories, FifthPlayerAction);
-
-    factories.insert(
-        PacketType::DialogueContinue,
-        PacketFactory::new(|| Box::new(game::DialogueContinue::default())),
-    );
-
-    factories.insert(
-        PacketType::ItemOnItem,
-        PacketFactory::new(|| Box::new(game::ItemOnItem::default())),
-    );
-
-    factories.insert(
-        PacketType::ItemOnObject,
-        PacketFactory::new(|| Box::new(game::ItemOnObject::default())),
-    );
-
-    factories.insert(
-        PacketType::ItemOnNpc,
-        PacketFactory::new(|| Box::new(game::ItemOnNpc::default())),
-    );
-
-    factories.insert(
-        PacketType::PrivacyOption,
-        PacketFactory::new(|| Box::new(game::PrivacyOption::default())),
-    );
-
-    factories.insert(
-        PacketType::Command,
-        PacketFactory::new(|| Box::new(game::Command::default())),
-    );
-
-    factories.insert(
-        PacketType::FlashingTabClicked,
-        PacketFactory::new(|| Box::new(game::FlashingTabClicked::default())),
-    );
-
-    factories.insert(
-        PacketType::ClosedInterface,
-        PacketFactory::new(|| Box::new(game::ClosedInterface::default())),
-    );
-
-    factories.insert(
-        PacketType::MagicOnNpc,
-        PacketFactory::new(|| Box::new(game::MagicOnNpc::default())),
-    );
-
-    factories.insert(
-        PacketType::MagicOnItem,
-        PacketFactory::new(|| Box::new(game::MagicOnItem::default())),
-    );
-
-    factories.insert(
-        PacketType::MagicOnPlayer,
-        PacketFactory::new(|| Box::new(game::MagicOnPlayer::default())),
-    );
-
-    factories.insert(
-        PacketType::ArrowKey,
-        PacketFactory::new(|| Box::new(game::ArrowKey::default())),
-    );
-
-    factories.insert(
-        PacketType::EnteredAmount,
-        PacketFactory::new(|| Box::new(game::EnteredAmount::default())),
-    );
-
-    factories.insert(
-        PacketType::ReportAbuse,
-        PacketFactory::new(|| Box::new(game::ReportAbuse::default())),
-    );
-
-    factories.insert(
-        PacketType::SpamPacket,
-        PacketFactory::new(|| Box::new(game::SpamPacket::default())),
-    );
-
-    factories.insert(
-        PacketType::TakeTileItem,
-        PacketFactory::new(|| Box::new(game::TakeTileItem::default())),
-    );
-
-    factories.insert(
-        PacketType::MouseClicked,
-        PacketFactory::new(|| Box::new(game::MouseClicked::default())),
-    );
-
-    factories.insert(
-        PacketType::PlayerDesign,
-        PacketFactory::new(|| Box::new(game::PlayerDesign::default())),
-    );
-
-    factories.insert(
-        PacketType::Walk,
-        PacketFactory::new(|| Box::new(game::Walk::default())),
-    );
-
-    let serverbound_count = PACKET_TYPE_MAP
-        .values()
-        .filter(|id| match id.direction {
-            PacketDirection::Serverbound => true,
-            PacketDirection::Clientbound => false,
-        })
-        .collect::<Vec<_>>()
-        .len();
-    log::debug!(
-        "You have implemented {}/{} serverbound packets so far :'(",
-        factories.len(),
-        serverbound_count
-    );
-
-    factories
-});
-
 impl PacketType {
     pub fn get_from_id(packet_id: PacketId) -> Option<PacketType> {
         PACKET_ID_MAP.get(&packet_id).copied()
@@ -690,8 +454,8 @@ impl PacketType {
             .unwrap_or_else(|| panic!("cannot find ID for packet type {:?}", self))
     }
 
-    pub fn create(self) -> anyhow::Result<Box<dyn Packet>> {
-        match PACKET_FACTORIES.get(&self) {
+    pub fn create(&self) -> anyhow::Result<Box<dyn Packet>> {
+        match crate::packets::PACKET_FACTORIES.get(&self) {
             None => anyhow::bail!("packet factory does not exist"),
             Some(factory) => Ok(factory.create()),
         }
@@ -705,10 +469,6 @@ impl PacketType {
             PacketType::Walk => true,
             PacketType::Command => true,
             PacketType::PrivateChat => true,
-            PacketType::Walk => true,
-            PacketType::SpamPacket => true,
-            PacketType::SpamPacket => true,
-            PacketType::Walk => true,
             _ => false,
         }
     }
@@ -719,7 +479,7 @@ pub struct PacketFactory {
 }
 
 impl PacketFactory {
-    fn new(init_fn: fn() -> Box<dyn Packet>) -> PacketFactory {
+    pub fn new(init_fn: fn() -> Box<dyn Packet>) -> PacketFactory {
         Self { init_fn }
     }
 

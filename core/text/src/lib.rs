@@ -38,7 +38,7 @@ pub fn decode_base37(mut input: u64) -> anyhow::Result<String> {
         let local_input = input;
         input /= 37;
         index += 1;
-        result[11 - index] = (VALID_NAME_CHARS[(local_input - input * 37) as usize]);
+        result[11 - index] = VALID_NAME_CHARS[(local_input - input * 37) as usize];
     }
     Ok(result.iter().filter(|c| **c != '\0').collect::<String>())
 }

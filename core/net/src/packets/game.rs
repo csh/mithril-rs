@@ -9,7 +9,7 @@ macro_rules! read_base37_username_only {
 
         impl Packet for $name {
             fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-                self.username = crate::util::text::decode_base37(src.get_u64())?;
+                self.username = mithril_text::decode_base37(src.get_u64())?;
                 Ok(())
             }
 
@@ -20,11 +20,11 @@ macro_rules! read_base37_username_only {
     };
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct KeepAlive;
 
 impl Packet for KeepAlive {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
+    fn try_read(&mut self, _: &mut BytesMut) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -64,7 +64,7 @@ impl Packet for PublicChat {
         let len = src.remaining();
         let mut compressed = vec![0u8; len];
         src.get_reverse(&mut compressed, Transform::Add);
-        self.message = crate::util::text::decompress(&compressed[..], len);
+        self.message = mithril_text::decompress(&compressed[..], len);
 
         Ok(())
     }
@@ -82,11 +82,11 @@ pub struct PrivateChat {
 
 impl Packet for PrivateChat {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.recipient = crate::util::text::decode_base37(src.get_u64())?;
+        self.recipient = mithril_text::decode_base37(src.get_u64())?;
         let len = src.remaining();
         let mut compressed = vec![0u8; len];
         src.copy_to_slice(&mut compressed[..]);
-        self.message = crate::util::text::decompress(&compressed[..], len);
+        self.message = mithril_text::decompress(&compressed[..], len);
         Ok(())
     }
 
@@ -358,7 +358,7 @@ impl Packet for FlashingTabClicked {
 pub struct ClosedInterface;
 
 impl Packet for ClosedInterface {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
+    fn try_read(&mut self, _: &mut BytesMut) -> anyhow::Result<()> {
         Ok(())
     }
 
@@ -434,7 +434,7 @@ pub struct ReportAbuse {
 
 impl Packet for ReportAbuse {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.name = crate::util::text::decode_base37(src.get_u64())?;
+        self.name = mithril_text::decode_base37(src.get_u64())?;
         self.rule = src.get_u8();
         self.muted = src.get_u8() == 1;
         Ok(())
@@ -531,6 +531,7 @@ impl Packet for PlayerDesign {
 #[derive(Debug, Default)]
 pub struct Walk {
     pub path: Vec<(i16, i16)>,
+    pub running: bool,
 }
 
 impl Packet for Walk {
@@ -543,7 +544,7 @@ impl Packet for Walk {
             path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
         }
         let y = src.get_u16_le();
-        let running = src.get_u8t(Transform::Negate) == 1;
+        self.running = src.get_u8t(Transform::Negate) == 1;
         path.insert(0, (x as i16, y as i16));
         self.path = path
             .iter()
@@ -560,6 +561,7 @@ impl Packet for Walk {
 #[derive(Debug, Default)]
 pub struct WalkWithAnticheat {
     pub path: Vec<(i16, i16)>,
+    pub running: bool,
 }
 
 impl Packet for WalkWithAnticheat {
@@ -572,7 +574,7 @@ impl Packet for WalkWithAnticheat {
             path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
         }
         let y = src.get_u16_le();
-        let running = src.get_u8t(Transform::Negate) == 1;
+        self.running = src.get_u8t(Transform::Negate) == 1;
         path.insert(0, (x as i16, y as i16));
         self.path = path
             .iter()
