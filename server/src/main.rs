@@ -1,13 +1,22 @@
 extern crate mithril_server_net as net;
+extern crate mithril_server_packets as packets;
+extern crate mithril_server_types as types;
 
 use anyhow::Context;
+use legion::prelude::*;
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::runtime;
 use tokio::runtime::Handle;
 
+mod systems;
+
 struct GameState {
     _runtime: Handle,
     shutdown_rx: crossbeam::Receiver<()>,
+    world: World,
+    resources: Resources,
+    executor: Executor,
 }
 
 pub fn handle_shutdown(tx: crossbeam::Sender<()>) {
@@ -35,11 +44,21 @@ pub async fn run(runtime: Handle) {
 
     log::info!("Listening on {}", bind_addr);
 
-    let network_manager = net::NetworkManager::start(listener);
+    let world = World::new();
+    let mut resources = Resources::default();
+    let executor = systems::build_executor();
 
-    let state = GameState {
+    let packets = Arc::new(packets::Packets::default());
+    let network_manager = net::NetworkManager::start(listener, Arc::clone(&packets));
+    resources.insert(packets);
+    resources.insert(network_manager);
+
+    let mut state = GameState {
         _runtime: runtime,
         shutdown_rx,
+        world,
+        resources,
+        executor,
     };
 
     let state = run_game_thread(state).await;
@@ -85,6 +104,9 @@ fn run_loop(state: &mut GameState) {
         }
 
         loop_helper.loop_start();
+        state
+            .executor
+            .execute(&mut state.world, &mut state.resources);
         // TODO: Implement game logic using Legion or Specs
         loop_helper.loop_sleep();
     }
