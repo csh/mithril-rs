@@ -71,6 +71,7 @@ impl Encoder<Box<dyn Packet>> for RunescapeCodec {
                 anyhow::ensure!(self.encoding_rng.is_some(), "ISAAC has not been configured");
                 let isaac = self.encoding_rng.as_mut().unwrap();
                 let packet_type = item.get_type();
+                log::debug!("Sending a {:?}", packet_type);
                 let mut encoding_buf = BytesMut::new();
                 item.try_write(&mut encoding_buf)?;
                 let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
@@ -90,63 +91,64 @@ impl Decoder for RunescapeCodec {
     type Error = anyhow::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.len() > 0 {
-            let len = src.len();
+        if src.len() < 1 {
+            return Ok(None);
+        }
 
-            let mut buf = src.split_to(len);
-            let packet_id = buf[0];
-            let packet_type = match self.stage {
-                PacketStage::Handshake => {
-                    // TODO: Figure out a more elegant solution than peeking packet_id
-                    PacketType::get_from_id(PacketId::new(
-                        packet_id,
-                        PacketDirection::Serverbound,
-                        self.stage,
-                    ))
-                }
-                PacketStage::Gameplay => {
-                    anyhow::ensure!(self.decoding_rng.is_some(), "ISAAC has not been configured");
-                    let isaac = self.decoding_rng.as_mut().unwrap();
-                    let decoded_id = buf.get_u8().wrapping_sub(isaac.gen::<u8>());
-                    PacketType::get_from_id(PacketId::new(
-                        decoded_id,
-                        PacketDirection::Serverbound,
-                        self.stage,
-                    ))
-                }
-            };
-
-            match packet_type {
-                Some(packet_type) => {
-                    log::debug!("We received a {:?}", packet_type);
-                    if packet_type.is_variable_length() {
-                        let packet_length = buf.get_u8();
-                        log::debug!("Packet length is {}", packet_length);
-                        assert_eq!(
-                            buf.remaining(),
-                            packet_length as usize,
-                            "remaining does not match expected packet length"
-                        );
-                    }
-                    let mut packet = packet_type.create().context("packet construction failed")?;
-                    packet.try_read(&mut buf).context("packet read failed")?;
-                    if buf.has_remaining() {
-                        log::debug!("buf still contains {} bytes after reading {:?}", buf.len(), packet_type);
-                    }
-                    Ok(Some(packet))
-                }
-                None => {
-                    log::warn!(
-                        "Received unknown packet ID for {:?}; skipping packet {:02X}",
-                        self.stage,
-                        packet_id
-                    );
-                    src.advance(src.len());
-                    Ok(None)
-                }
+        let packet_id = src[0];
+        let packet_type = match self.stage {
+            PacketStage::Handshake => {
+                // TODO: Figure out a more elegant solution than peeking packet_id
+                PacketType::get_from_id(PacketId::new(
+                    packet_id,
+                    PacketDirection::Serverbound,
+                    self.stage,
+                ))
             }
-        } else {
-            Ok(None)
+            PacketStage::Gameplay => {
+                anyhow::ensure!(self.decoding_rng.is_some(), "ISAAC has not been configured");
+                let isaac = self.decoding_rng.as_mut().unwrap();
+                let decoded_id = src.get_u8().wrapping_sub(isaac.gen::<u8>());
+                PacketType::get_from_id(PacketId::new(
+                    decoded_id,
+                    PacketDirection::Serverbound,
+                    self.stage,
+                ))
+            }
+        };
+
+        match packet_type {
+            Some(packet_type) => {
+                log::debug!("We received a {:?}", packet_type);
+                if packet_type.is_variable_length() {
+                    let packet_length = src.get_u8();
+                    log::debug!("Packet length is {}", packet_length);
+                    assert_eq!(
+                        src.remaining(),
+                        packet_length as usize,
+                        "remaining does not match expected packet length"
+                    );
+                }
+                let mut packet = packet_type.create().context("packet construction failed")?;
+                packet.try_read(src).context("packet read failed")?;
+                if src.has_remaining() {
+                    log::debug!(
+                        "buf still contains {} bytes after reading {:?}",
+                        src.len(),
+                        packet_type
+                    );
+                }
+                Ok(Some(packet))
+            }
+            None => {
+                log::warn!(
+                    "Received unknown packet ID for {:?}; skipping packet {:02X}",
+                    self.stage,
+                    packet_id
+                );
+                src.advance(src.len());
+                Ok(None)
+            }
         }
     }
 }

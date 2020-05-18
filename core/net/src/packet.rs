@@ -2,7 +2,9 @@ use std::any::Any;
 
 use ahash::AHashMap;
 use bytes::BytesMut;
+use num_derive::ToPrimitive;
 use once_cell::sync::Lazy;
+use strum_macros::EnumIter;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PacketId {
@@ -33,7 +35,7 @@ pub enum PacketStage {
     Gameplay,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter, ToPrimitive)]
 pub enum PacketType {
     // Handshake
     HandshakeHello,

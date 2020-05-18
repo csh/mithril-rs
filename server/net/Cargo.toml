@@ -5,10 +5,17 @@ authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
 
 [dependencies]
+mithril-server-packets = { path = "../packets" }
+mithril-server-types = { path = "../types" }
+mithril-core = { path = "../../core" }
+
 tokio = { version = "0.2", features = ["tcp", "rt-core"] }
 tokio-util = { version = "0.3", features = ["codec"] }
-mithril-core = { path = "../../core" }
-crossbeam = "0.7"
+parking_lot = "0.10"
+derivative = "2.1"
 futures = "0.3"
 anyhow = "1.0"
+crossbeam = "0.7"
+flume = "0.7"
 log = "0.4"
+legion = { git = "https://github.com/TomGillen/legion", rev = "e2c7363e0c059ec1a5fe659b6e50f09f8cdf9793" }
