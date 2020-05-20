@@ -49,7 +49,10 @@ pub fn poll_new_clients() -> Box<dyn Schedulable> {
                         ));
 
                         let _ = new_client.tx.send(ServerToWorkerMessage::Dispatch {
-                            packet: Box::new(mithril_core::net::packets::IdAssignment),
+                            packet: Box::new(mithril_core::net::packets::IdAssignment {
+                                is_member: true,
+                                entity_id: 1
+                            }),
                         });
 
                         crate::create(commands, new_client);

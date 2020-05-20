@@ -106,7 +106,7 @@ fn generate_quote_write(field_name: &Ident, field_type: &Ident, field_metadata: 
             }
         } else {
             quote! {
-                dst.put_rs_string(self.#field_name);
+                dst.put_rs_string(self.#field_name.clone());
             }
         }
     } else {
