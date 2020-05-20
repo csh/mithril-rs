@@ -151,6 +151,12 @@ pub enum PacketType {
     // endregion
 }
 
+pub enum PacketLength {
+    Fixed(usize),
+    VariableByte,
+    VariableShort
+}
+
 static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     let mut packets = AHashMap::new();
 
@@ -425,12 +431,96 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
 
     // region Gameplay clientbound packets
     packets.insert(
+        PacketId::new(8, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetModel,
+    );
+    packets.insert(
+        PacketId::new(27, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::EnterAmount,
+    );
+    packets.insert(
+        PacketId::new(61, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::DisplayCrossbones,
+    );
+    packets.insert(
+        PacketId::new(71, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SwitchTabInterface,
+    );
+    packets.insert(
+        PacketId::new(75, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetNpcModel,
+    );
+    packets.insert(
+        PacketId::new(97, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::OpenInterface,
+    );
+    packets.insert(
+        PacketId::new(104, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetPlayerAction,
+    );
+    packets.insert(
+        PacketId::new(106, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::DisplayTabInterface,
+    );
+    packets.insert(
+        PacketId::new(109, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::Logout,
+    );
+    packets.insert(
+        PacketId::new(110, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::UpdateRunEnergy,
+    );
+    packets.insert(
+        PacketId::new(126, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetText,
+    );
+    packets.insert(
+        PacketId::new(134, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::UpdateSkill,
+    );
+    packets.insert(
+        PacketId::new(164, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::OpenDialogueInterface,
+    );
+    packets.insert(
+        PacketId::new(171, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetVisibility,
+    );
+    packets.insert(
+        PacketId::new(185, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetPlayerModel,
+    );
+    packets.insert(
+        PacketId::new(200, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetModelAnimation,
+    );
+    packets.insert(
         PacketId::new(206, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::PrivacyOption,
     );
     packets.insert(
+        PacketId::new(219, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::CloseInterface,
+    );
+    packets.insert(
+        PacketId::new(240, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::UpdateWeight,
+    );
+    packets.insert(
+        PacketId::new(246, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SetWidgetItemModel,
+    );
+    packets.insert(
+        PacketId::new(248, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::OpenInterfaceSidebar,
+    );
+    packets.insert(
         PacketId::new(249, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::IdAssignment,
+    );
+    packets.insert(
+        PacketId::new(253, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::ServerMessage,
     );
     //endregion
 
@@ -463,15 +553,76 @@ impl PacketType {
         }
     }
 
-    pub fn is_variable_length(&self) -> bool {
+    pub fn packet_length(&self) -> Option<PacketLength> {
         match self {
-            PacketType::PublicChat => true,
-            PacketType::FlaggedMouseEvent => true,
-            PacketType::SpamPacket => true,
-            PacketType::Walk => true,
-            PacketType::Command => true,
-            PacketType::PrivateChat => true,
-            _ => false,
+            PacketType::KeepAlive => Some(PacketLength::Fixed(0)),
+            PacketType::FocusUpdate => Some(PacketLength::Fixed(1)),
+            PacketType::ThirdItemOption => Some(PacketLength::Fixed(6)),
+            PacketType::ThirdNpcAction => Some(PacketLength::Fixed(2)),
+            PacketType::FifthNpcAction => Some(PacketLength::Fixed(2)),
+            PacketType::FourthNpcAction => Some(PacketLength::Fixed(2)),
+            PacketType::FifthPlayerAction => Some(PacketLength::Fixed(2)),
+            PacketType::DialogueContinue => Some(PacketLength::Fixed(2)),
+            PacketType::SecondItemOption => Some(PacketLength::Fixed(6)),
+            PacketType::ThirdItemAction => Some(PacketLength::Fixed(6)),
+            PacketType::ItemOnItem => Some(PacketLength::Fixed(12)),
+            PacketType::ItemOnNpc => Some(PacketLength::Fixed(8)),
+            PacketType::ThirdObjectAction => Some(PacketLength::Fixed(6)),
+            PacketType::SecondNpcAction => Some(PacketLength::Fixed(2)),
+            PacketType::ThirdPlayerAction => Some(PacketLength::Fixed(2)),
+            PacketType::RemoveIgnore => Some(PacketLength::Fixed(8)),
+            PacketType::FourthItemOption => Some(PacketLength::Fixed(6)),
+            PacketType::SpamPacket => Some(PacketLength::Fixed(0)),
+            PacketType::ArrowKey => Some(PacketLength::Fixed(4)),
+            PacketType::FifthItemOption => Some(PacketLength::Fixed(6)),
+            PacketType::PrivacyOption => Some(PacketLength::Fixed(3)),
+            PacketType::PlayerDesign => Some(PacketLength::Fixed(13)),
+            PacketType::SecondItemAction => Some(PacketLength::Fixed(6)),
+            PacketType::FlashingTabClicked => Some(PacketLength::Fixed(1)),
+            PacketType::SpamPacket => Some(PacketLength::Fixed(0)),
+            PacketType::FirstItemOption => Some(PacketLength::Fixed(6)),
+            PacketType::FirstPlayerAction => Some(PacketLength::Fixed(2)),
+            PacketType::FourthItemAction => Some(PacketLength::Fixed(6)),
+            PacketType::ClosedInterface => Some(PacketLength::Fixed(0)),
+            PacketType::MagicOnNpc => Some(PacketLength::Fixed(4)),
+            PacketType::FirstObjectAction => Some(PacketLength::Fixed(6)),
+            PacketType::AddIgnore => Some(PacketLength::Fixed(8)),
+            PacketType::FifthItemAction => Some(PacketLength::Fixed(6)),
+            PacketType::FourthPlayerAction => Some(PacketLength::Fixed(2)),
+            PacketType::FirstItemAction => Some(PacketLength::Fixed(6)),
+            PacketType::SecondPlayerAction => Some(PacketLength::Fixed(2)),
+            PacketType::FirstNpcAction => Some(PacketLength::Fixed(2)),
+            PacketType::Button => Some(PacketLength::Fixed(2)),
+            PacketType::AddFriend => Some(PacketLength::Fixed(8)),
+            PacketType::SpamPacket => Some(PacketLength::Fixed(1)),
+            PacketType::ItemOnObject => Some(PacketLength::Fixed(12)),
+            PacketType::EnteredAmount => Some(PacketLength::Fixed(4)),
+            PacketType::SpamPacket => Some(PacketLength::Fixed(4)),
+            PacketType::SwitchItem => Some(PacketLength::Fixed(7)),
+            PacketType::RemoveFriend => Some(PacketLength::Fixed(8)),
+            PacketType::ReportAbuse => Some(PacketLength::Fixed(10)),
+            PacketType::TakeTileItem => Some(PacketLength::Fixed(6)),
+            PacketType::MagicOnItem => Some(PacketLength::Fixed(8)),
+            PacketType::MouseClicked => Some(PacketLength::Fixed(4)),
+            PacketType::MagicOnPlayer => Some(PacketLength::Fixed(4)),
+            PacketType::SecondObjectAction => Some(PacketLength::Fixed(6)),
+            PacketType::PublicChat => Some(PacketLength::VariableByte),
+            PacketType::FlaggedMouseEvent => Some(PacketLength::VariableByte),
+            PacketType::SpamPacket => Some(PacketLength::VariableByte),
+            PacketType::Walk => Some(PacketLength::VariableByte),
+            PacketType::Command => Some(PacketLength::VariableByte),
+            PacketType::PrivateChat => Some(PacketLength::VariableByte),
+            PacketType::ServerMessage => Some(PacketLength::VariableByte),
+            PacketType::SetPlayerAction => Some(PacketLength::VariableByte),
+            PacketType::ForwardPrivateChat => Some(PacketLength::VariableByte),
+            PacketType::GroupedRegionUpdate => Some(PacketLength::VariableByte),
+            PacketType::IgnoreList => Some(PacketLength::VariableShort),
+            PacketType::NpcSynchronization => Some(PacketLength::VariableShort),
+            PacketType::PlayerSynchronization => Some(PacketLength::VariableShort),
+            PacketType::SetWidgetText => Some(PacketLength::VariableShort),
+            PacketType::UpdateItems => Some(PacketLength::VariableShort),
+            PacketType::UpdateSlottedItems => Some(PacketLength::VariableShort),
+            _ => None,
         }
     }
 }

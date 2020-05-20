@@ -384,10 +384,138 @@ impl Packet for WalkWithAnticheat {
 }
 
 #[derive(Debug, Packet)]
+pub struct SetWidgetModel {
+    #[transform = "add"]
+    #[endian = "little"]
+    pub interface_id: u16,
+    pub model_id: u16,
+}
+
+#[derive(Debug, Packet)]
+pub struct EnterAmount;
+
+#[derive(Debug, Packet)]
+pub struct DisplayCrossbones {
+    pub shown: bool
+}
+
+#[derive(Debug, Packet)]
+pub struct SwitchTabInterface {
+    pub interface_id: u16,
+    #[transform = "add"]
+    pub tab_id: u8,
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetNpcModel {
+    #[transform = "add"]
+    #[endian = "little"]
+    pub model_id: u16,
+    #[transform = "add"]
+    #[endian = "little"]
+    pub interface_id: u16,
+}
+
+#[derive(Debug, Packet)]
+pub struct OpenInterface {
+    pub id: u16,
+}
+
+#[derive(Debug, Packet)]
+pub struct SetPlayerAction {
+    #[transform = "negate"]
+    pub slot: u8,
+    #[transform = "add"]
+    pub is_primary_action: bool,
+    pub action: String
+}
+
+#[derive(Debug, Packet)]
+pub struct DisplayTabInterface {
+    #[transform = "negate"]
+    pub tab_id: u8
+}
+
+#[derive(Debug, Packet)]
+pub struct Logout;
+
+#[derive(Debug, Packet)]
+pub struct UpdateRunEnergy {
+    pub energy: u8
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetText {
+    pub message: String,
+    #[transform = "add"]
+    pub widget_id: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct UpdateSkill {
+    pub skill_id: u8,
+    pub experience: u32,
+    pub level: u8,
+}
+
+#[derive(Debug, Packet)]
+pub struct OpenDialogueInterface {
+    #[endian = "little"]
+    pub interface_id: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetVisibility {
+    pub is_visible: bool,
+    #[transform = "add"]
+    pub widget_id: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetPlayerModel {
+    #[endian = "little"]
+    pub interface_id: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetModelAnimation {
+    pub interface_id: u16,
+    pub animation_id: u16,
+}
+
+#[derive(Debug, Packet)]
+pub struct CloseInterface;
+
+#[derive(Debug, Packet)]
+pub struct UpdateWeight {
+    pub weight: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct SetWidgetItemModel {
+    #[endian = "little"]
+    pub interface_id: u16,
+    pub zoom: u16,
+    pub model_id: u16
+}
+
+#[derive(Debug, Packet)]
+pub struct OpenInterfaceSidebar {
+    #[transform = "add"]
+    pub interface_id: u16,
+    pub sidebar_id: u16,
+}
+
+#[derive(Debug, Packet)]
 pub struct IdAssignment {
     #[transform = "add"]
     pub is_member: bool,
     #[transform = "add"]
     #[endian = "little"]
-    pub entity_id: u16
+    pub entity_id: u16,
+}
+
+#[derive(Debug, Packet)]
+pub struct ServerMessage {
+    pub message: String,
 }

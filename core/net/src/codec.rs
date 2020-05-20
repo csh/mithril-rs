@@ -3,7 +3,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use rand::{Rng, SeedableRng};
 use tokio_util::codec::{Decoder, Encoder};
 
-use crate::{Packet, PacketDirection, PacketId, PacketStage, PacketType};
+use crate::{Packet, PacketDirection, PacketId, PacketStage, PacketType, PacketLength};
 
 pub struct RunescapeCodec {
     encoding_rng: Option<rand_isaac::IsaacRng>,
@@ -76,8 +76,14 @@ impl Encoder<Box<dyn Packet>> for RunescapeCodec {
                 item.try_write(&mut encoding_buf)?;
                 let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
                 dst.put_u8(packet_id);
-                if packet_type.is_variable_length() {
-                    dst.put_u8(encoding_buf.len() as u8);
+                if let Some(packet_length) = packet_type.packet_length() {
+                    match packet_length {
+                        PacketLength::VariableByte => dst.put_u8(encoding_buf.len() as u8),
+                        PacketLength::VariableShort => dst.put_u16(encoding_buf.len() as u16),
+                        PacketLength::Fixed(len) => {
+                            assert_eq!(encoding_buf.len(), len, "fixed length mismatch");
+                        },
+                    }
                 }
                 dst.put(encoding_buf);
                 Ok(())
@@ -119,23 +125,27 @@ impl Decoder for RunescapeCodec {
 
         match packet_type {
             Some(packet_type) => {
-                log::debug!("We received a {:?}", packet_type);
-                if packet_type.is_variable_length() {
-                    let packet_length = src.get_u8();
-                    log::debug!("Packet length is {}", packet_length);
-                    assert_eq!(
-                        src.remaining(),
-                        packet_length as usize,
-                        "remaining does not match expected packet length"
-                    );
-                }
+                let mut src = match packet_type.packet_length() {
+                    Some(PacketLength::Fixed(len)) => src.split_to(len),
+                    Some(PacketLength::VariableByte) => {
+                        let len = src.get_u8();
+                        src.split_to(len as usize)
+                    },
+                    Some(PacketLength::VariableShort) => {
+                        let len = src.get_u16();
+                        src.split_to(len as usize)
+                    },
+                    None => src.split_to(src.remaining()),
+                };
+                log::debug!("We received a {:?}; len = {}", packet_type, src.len());
                 let mut packet = packet_type.create().context("packet construction failed")?;
-                packet.try_read(src).context("packet read failed")?;
+                packet.try_read(&mut src).context("packet read failed")?;
                 if src.has_remaining() {
                     log::debug!(
-                        "buf still contains {} bytes after reading {:?}",
+                        "buf still contains {} bytes after reading {:?}; {:X}",
                         src.len(),
-                        packet_type
+                        packet_type,
+                        src
                     );
                 }
                 Ok(Some(packet))
