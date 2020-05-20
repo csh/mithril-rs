@@ -1,52 +1,11 @@
 use super::prelude::*;
 
-macro_rules! read_base37_username_only {
-    ($name:ident) => {
-        #[derive(Debug, Default)]
-        pub struct $name {
-            pub username: String,
-        }
-
-        impl Packet for $name {
-            fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-                self.username = mithril_text::decode_base37(src.get_u64())?;
-                Ok(())
-            }
-
-            fn get_type(&self) -> PacketType {
-                PacketType::$name
-            }
-        }
-    };
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct KeepAlive;
 
-impl Packet for KeepAlive {
-    fn try_read(&mut self, _: &mut BytesMut) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::KeepAlive
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct FocusUpdate {
     pub in_focus: bool,
-}
-
-impl Packet for FocusUpdate {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.in_focus = src.get_u8() == 1;
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::FocusUpdate
-    }
 }
 
 #[derive(Debug, Default)]
@@ -95,38 +54,15 @@ impl Packet for PrivateChat {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ArrowKey {
     pub roll: u16,
     pub yaw: u16,
 }
 
-impl Packet for ArrowKey {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.roll = src.get_u16_le();
-        self.yaw = src.get_u16_le();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ArrowKey
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct EnteredAmount {
     pub amount: u32,
-}
-
-impl Packet for EnteredAmount {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.amount = src.get_u32();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::EnteredAmount
-    }
 }
 
 #[derive(Debug)]
@@ -184,265 +120,135 @@ impl Packet for PlayerAction {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct DialogueContinue {
     pub interface_id: u16,
 }
 
-impl Packet for DialogueContinue {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.interface_id = src.get_u16();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::DialogueContinue
-    }
+#[derive(Debug, Default, Packet)]
+pub struct AddFriend {
+    #[base37]
+    pub username: String,
 }
 
-read_base37_username_only!(AddFriend);
-read_base37_username_only!(AddIgnore);
-read_base37_username_only!(RemoveFriend);
-read_base37_username_only!(RemoveIgnore);
+#[derive(Debug, Default, Packet)]
+pub struct AddIgnore {
+    #[base37]
+    pub username: String,
+}
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
+pub struct RemoveFriend {
+    #[base37]
+    pub username: String,
+}
+
+#[derive(Debug, Default, Packet)]
+pub struct RemoveIgnore {
+    #[base37]
+    pub username: String,
+}
+
+#[derive(Debug, Default, Packet)]
 pub struct Button {
     pub interface_id: u16,
 }
 
-impl Packet for Button {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.interface_id = src.get_u16();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::Button
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ItemOnItem {
     pub target_slot: u16,
+    #[transform = "add"]
     pub source_slot: u16,
+    #[transform = "add"]
+    #[endian = "little"]
     pub target_id: u16,
     pub target_interface: u16,
+    #[endian = "little"]
     pub source_id: u16,
     pub source_interface: u16,
 }
 
-impl Packet for ItemOnItem {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.target_slot = src.get_u16();
-        self.source_slot = src.get_u16t(Transform::Add);
-        self.target_id = src.get_u16t_le(Transform::Add);
-        self.target_interface = src.get_u16();
-        self.source_id = src.get_u16_le();
-        self.source_interface = src.get_u16();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ItemOnItem
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ItemOnNpc {
+    #[transform = "add"]
     pub source_id: u16,
+    #[transform = "add"]
     pub npc_id: u16,
+    #[endian = "little"]
     pub source_slot: u16,
+    #[transform = "add"]
     pub source_interface: u16,
 }
 
-impl Packet for ItemOnNpc {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.source_id = src.get_u16t(Transform::Add);
-        self.npc_id = src.get_u16t(Transform::Add);
-        self.source_slot = src.get_u16_le();
-        self.source_interface = src.get_u16t(Transform::Add);
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ItemOnItem
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ItemOnObject {
     pub interface_id: u16,
-    pub item_id: u16,
+    #[endian = "little"]
     pub object_id: u16,
-    pub slot: u16,
-    pub x: u16,
+    #[transform = "add"]
+    #[endian = "little"]
     pub y: u16,
+    #[endian = "little"]
+    pub slot: u16,
+    #[transform = "add"]
+    #[endian = "little"]
+    pub x: u16,
+    pub item_id: u16,
 }
 
-impl Packet for ItemOnObject {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.interface_id = src.get_u16();
-        self.object_id = src.get_u16_le();
-        self.y = src.get_u16t_le(Transform::Add);
-        self.slot = src.get_u16_le();
-        self.x = src.get_u16t_le(Transform::Add);
-        self.item_id = src.get_u16();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ItemOnObject
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct PrivacyOption {
     pub public_state: u8,
     pub private_state: u8,
     pub trade_state: u8,
 }
 
-impl Packet for PrivacyOption {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.public_state = src.get_u8();
-        self.private_state = src.get_u8();
-        self.trade_state = src.get_u8();
-        Ok(())
-    }
-
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        src.put_u8(self.public_state);
-        src.put_u8(self.private_state);
-        src.put_u8(self.trade_state);
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::PrivacyOption
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct Command {
     pub command: String,
 }
 
-impl Packet for Command {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.command = src.get_rs_string();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::Command
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct FlashingTabClicked {
     pub tab: u8,
 }
 
-impl Packet for FlashingTabClicked {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.tab = src.get_u8();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::FlashingTabClicked
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ClosedInterface;
 
-impl Packet for ClosedInterface {
-    fn try_read(&mut self, _: &mut BytesMut) -> anyhow::Result<()> {
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ClosedInterface
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct MagicOnNpc {
+    #[transform = "add"]
+    #[endian = "little"]
     pub entity_id: u16,
+    #[transform = "add"]
     pub spell: u16,
 }
 
-impl Packet for MagicOnNpc {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.entity_id = src.get_u16t_le(Transform::Add);
-        self.spell = src.get_u16t(Transform::Add);
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::MagicOnNpc
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct MagicOnItem {
-    pub interface_id: u16,
-    pub item_id: u16,
     pub slot: u16,
+    #[transform = "add"]
+    pub item_id: u16,
+    pub interface_id: u16,
+    #[transform = "add"]
     pub spell: u16,
 }
 
-impl Packet for MagicOnItem {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.slot = src.get_u16();
-        self.item_id = src.get_u16t(Transform::Add);
-        self.interface_id = src.get_u16();
-        self.spell = src.get_u16t(Transform::Add);
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::MagicOnItem
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct MagicOnPlayer {
+    #[transform = "add"]
     pub index: u16,
+    #[endian = "little"]
     pub spell: u16,
 }
 
-impl Packet for MagicOnPlayer {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.index = src.get_u16t(Transform::Add);
-        self.spell = src.get_u16_le();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::MagicOnPlayer
-    }
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct ReportAbuse {
-    pub name: String,
+    #[base37]
+    pub username: String,
     pub rule: u8,
     pub muted: bool,
-}
-
-impl Packet for ReportAbuse {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.name = mithril_text::decode_base37(src.get_u64())?;
-        self.rule = src.get_u8();
-        self.muted = src.get_u8() == 1;
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::ReportAbuse
-    }
 }
 
 #[derive(Debug, Default)]
@@ -461,24 +267,13 @@ impl Packet for SpamPacket {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Packet)]
 pub struct TakeTileItem {
-    pub x: u16,
+    #[endian = "little"]
     pub y: u16,
     pub item_id: u16,
-}
-
-impl Packet for TakeTileItem {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.y = src.get_u16_le();
-        self.item_id = src.get_u16();
-        self.x = src.get_u16_le();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::TakeTileItem
-    }
+    #[endian = "little"]
+    pub x: u16,
 }
 
 #[derive(Debug, Default)]
@@ -588,17 +383,11 @@ impl Packet for WalkWithAnticheat {
     }
 }
 
-#[derive(Debug)]
-pub struct IdAssignment;
-
-impl Packet for IdAssignment {
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        src.put_u8t(1, Transform::Add);
-        src.put_u16t(rand::random(), Transform::Add);
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::IdAssignment
-    }
+#[derive(Debug, Packet)]
+pub struct IdAssignment {
+    #[transform = "add"]
+    pub is_member: bool,
+    #[transform = "add"]
+    #[endian = "little"]
+    pub entity_id: u16
 }

@@ -7,6 +7,11 @@ use super::Transform;
 /// A set of helper methods that extend the `BufMut` object with functionality required to fully
 /// encode packets bound for the client.
 pub trait GameBufMut: BufMut {
+    fn put_rs_string(&mut self, value: String) {
+        value.chars().for_each(|c| self.put_u8(c as u8));
+        self.put_u8(10);
+    }
+
     /// Writes a big endian `u8` to the `Buf` whilst applying a transformation.
     fn put_u8t(&mut self, value: u8, transform: Transform) {
         match transform {

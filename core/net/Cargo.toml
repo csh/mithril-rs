@@ -5,6 +5,7 @@ authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
 
 [dependencies]
+mithril-codegen = { path = "../../codegen" }
 mithril-text = { path = "../text" }
 
 tokio-util = { version = "0.3", features = ["codec"] }
