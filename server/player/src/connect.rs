@@ -8,6 +8,8 @@ use mithril_server_types::{
     AuthenticationResult, Named, Networked, ServerToWorkerMessage, WorkerToServerMessage,
 };
 
+use mithril_core::net::packets::{IdAssignment, SwitchTabInterface};
+
 pub fn poll_disconnect() -> Box<dyn Schedulable> {
     SystemBuilder::new("poll_disconnect")
         .with_query(<(Read<Networked>, Read<Named>)>::query())
@@ -49,11 +51,22 @@ pub fn poll_new_clients() -> Box<dyn Schedulable> {
                         ));
 
                         let _ = new_client.tx.send(ServerToWorkerMessage::Dispatch {
-                            packet: Box::new(mithril_core::net::packets::IdAssignment {
+                            packet: Box::new(IdAssignment {
                                 is_member: true,
                                 entity_id: 1
                             }),
                         });
+
+                        // TODO: Move this definition elsewhere. For now, enjoy the fact the client displays more than "Connection lost" :)
+                        let tabs: [u16; 14] = [2423, 3917, 638, 3213, 1644, 5608, 1151, u16::MAX, 5065, 5715, 2449, 904, 147, 962];
+                        for i in 0..tabs.len() {
+                            let _ = new_client.tx.send(ServerToWorkerMessage::Dispatch {
+                                packet: Box::new(SwitchTabInterface {
+                                    interface_id: tabs[i],
+                                    tab_id: i as u8
+                                })
+                            });
+                        }
 
                         crate::create(commands, new_client);
                     }
