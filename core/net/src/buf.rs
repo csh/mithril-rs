@@ -1,5 +1,6 @@
 pub use read::GameBuf;
 pub use write::GameBufMut;
+pub use write::BitWriter;
 
 mod read;
 mod write;

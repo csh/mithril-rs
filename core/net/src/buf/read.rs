@@ -7,6 +7,7 @@ use super::Transform;
 /// A set of helper methods that extend the Buf object with functionality required to fully
 /// decode packets sent by the client.
 pub trait GameBuf: Buf {
+    /// Attempts to read a String from self, this method will read until a line feed (`\n`) character.
     fn get_rs_string(&mut self) -> String {
         let mut result = String::default();
         loop {
