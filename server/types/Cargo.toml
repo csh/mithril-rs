@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 mithril-core = { path = "../../core" }
+specs = { version = "0.16", features = ["specs-derive"] }
 parking_lot = "0.10"
 derivative = "2.1"
 flume = "0.7"

@@ -20,6 +20,6 @@ simple_logger = "1"
 crossbeam = "0.7"
 spin_sleep = "1"
 anyhow = "1.0"
+specs = "0.16"
 ctrlc = "3.1"
 log = "0.4"
-legion = { git = "https://github.com/TomGillen/legion", rev = "e2c7363e0c059ec1a5fe659b6e50f09f8cdf9793" }

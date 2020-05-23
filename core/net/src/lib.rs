@@ -3,7 +3,7 @@
 pub use codec::RunescapeCodec;
 pub use packet::{cast_packet, Packet, PacketDirection, PacketId, PacketStage, PacketType, PacketLength};
 
-mod buf;
+pub mod buf;
 mod codec;
 mod packet;
 

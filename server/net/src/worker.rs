@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::prelude::*;
-use legion::entity::Entity;
+use specs::Entity;
 use parking_lot::Mutex;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
@@ -59,12 +59,10 @@ pub async fn run_worker(
         packets,
     };
 
-    match run_worker_impl(&mut worker).await {
+    let reason = match run_worker_impl(&mut worker).await {
         Ok(()) => String::from("disconnected"),
         Err(e) => format!("{}", e),
     };
-
-    let _ = worker.tx.send(WorkerToServerMessage::Disconnect);
 
     // Server is not aware of the connection, request the entity destruction via the listener channel
     if worker.server_rx.is_some() {
@@ -72,7 +70,9 @@ pub async fn run_worker(
             .listener_tx
             .send(ListenerToServerMessage::DestroyEntity(worker.entity));
     } else {
-        // We don't need to specify the entity here as this will be processed by a Legion system.
+        let _ = worker.tx.send(WorkerToServerMessage::Disconnect {
+            reason
+        });
     }
 }
 
@@ -92,7 +92,7 @@ async fn run_worker_impl(worker: &mut Worker) -> anyhow::Result<()> {
         let received_packet = worker.framed.next();
         let select = futures::future::select(received_message, received_packet);
         match select.await {
-            future::Either::Left((message_opt, b)) => {
+            future::Either::Left((message_opt, _)) => {
                 if let Some(message) = message_opt {
                     handle_worker_message(worker, message).await?;
                 }
@@ -146,7 +146,7 @@ async fn handle_handshake_packet(
     }
 }
 
-async fn handle_handshake(worker: &mut Worker, handshake: HandshakeHello) -> anyhow::Result<()> {
+async fn handle_handshake(worker: &mut Worker, _handshake: HandshakeHello) -> anyhow::Result<()> {
     worker
         .framed
         .send(Box::new(HandshakeExchangeKey::default()))

@@ -1,5 +1,5 @@
 use ahash::AHashMap;
-use legion::entity::Entity;
+use specs::Entity;
 use num_traits::cast::ToPrimitive;
 use parking_lot::{Mutex, RwLock};
 use strum::IntoEnumIterator;

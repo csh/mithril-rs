@@ -4,7 +4,7 @@ use mithril_server_packets::Packets;
 use mithril_server_types::{ServerToWorkerMessage, WorkerToServerMessage};
 
 use derivative::Derivative;
-use legion::entity::Entity;
+use specs::Entity;
 use parking_lot::Mutex;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;

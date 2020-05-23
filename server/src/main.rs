@@ -3,20 +3,20 @@ extern crate mithril_server_packets as packets;
 extern crate mithril_server_types as types;
 
 use anyhow::Context;
-use legion::prelude::*;
+use specs::prelude::*;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::runtime;
 use tokio::runtime::Handle;
+use std::panic;
 
 mod systems;
 
-struct GameState {
+struct GameState<'a, 'b> {
     _runtime: Handle,
     shutdown_rx: crossbeam::Receiver<()>,
     world: World,
-    resources: Resources,
-    executor: Executor,
+    dispatcher: Dispatcher<'a, 'b>,
 }
 
 pub fn handle_shutdown(tx: crossbeam::Sender<()>) {
@@ -44,56 +44,35 @@ pub async fn run(runtime: Handle) {
 
     log::info!("Listening on {}", bind_addr);
 
-    let world = World::new();
-    let mut resources = Resources::default();
-    let executor = systems::build_executor();
+    let mut world = World::new();
+    let mut dispatcher = systems::build_dispatcher();
 
     let packets = Arc::new(packets::Packets::default());
     let network_manager = net::NetworkManager::start(listener, Arc::clone(&packets));
-    resources.insert(packets);
-    resources.insert(network_manager);
+    world.insert(packets);
+    world.insert(network_manager);
+
+    dispatcher.setup(&mut world);
 
     let mut state = GameState {
         _runtime: runtime,
         shutdown_rx,
         world,
-        resources,
-        executor,
+        dispatcher,
     };
 
-    let state = run_game_thread(state).await;
+    let panic = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        run_loop(&mut state)
+    }));
+
+    if let Err(_) = panic {
+        log::error!("Mithril has crashed!");
+    }
 
     // TODO: Shut down server gracefully
 
     log::info!("Mithril is shutting down");
     std::process::exit(0);
-}
-
-async fn run_game_thread(mut state: GameState) -> GameState {
-    use std::panic;
-    use tokio::sync::oneshot;
-
-    let (tx, rx) = oneshot::channel();
-
-    std::thread::Builder::new()
-        .name(String::from("mithril"))
-        .spawn(|| {
-            let panic = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                run_loop(&mut state);
-            }));
-
-            match panic {
-                Ok(_) => (),
-                Err(_) => {
-                    log::error!("Mithril has crashed.");
-                }
-            }
-
-            tx.send(state).ok().expect("failed to exit server thread");
-        })
-        .expect("failed to spawn game logic thread");
-
-    rx.await.unwrap()
 }
 
 fn run_loop(state: &mut GameState) {
@@ -104,9 +83,7 @@ fn run_loop(state: &mut GameState) {
         }
 
         loop_helper.loop_start();
-        state
-            .executor
-            .execute(&mut state.world, &mut state.resources);
+        state.dispatcher.dispatch(&mut state.world);
         // TODO: Implement game logic using Legion or Specs
         loop_helper.loop_sleep();
     }

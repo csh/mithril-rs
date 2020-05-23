@@ -16,6 +16,6 @@ derivative = "2.1"
 futures = "0.3"
 anyhow = "1.0"
 crossbeam = "0.7"
+specs = "0.16"
 flume = "0.7"
 log = "0.4"
-legion = { git = "https://github.com/TomGillen/legion", rev = "e2c7363e0c059ec1a5fe659b6e50f09f8cdf9793" }
