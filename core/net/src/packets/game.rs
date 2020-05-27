@@ -1,4 +1,5 @@
 use super::prelude::*;
+use crate::PacketLength;
 
 #[derive(Debug, Default, Packet)]
 pub struct KeepAlive;
@@ -251,8 +252,8 @@ pub struct ReportAbuse {
     pub muted: bool,
 }
 
-#[derive(Debug, Default)]
-pub struct SpamPacket;
+#[derive(Debug)]
+pub struct SpamPacket(pub PacketLength);
 
 impl Packet for SpamPacket {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
@@ -262,8 +263,9 @@ impl Packet for SpamPacket {
         Ok(())
     }
 
+    // TODO: Can we drop this?
     fn get_type(&self) -> PacketType {
-        PacketType::SpamPacket
+        PacketType::SpamPacket(self.0)
     }
 }
 
@@ -518,4 +520,32 @@ pub struct IdAssignment {
 #[derive(Debug, Packet)]
 pub struct ServerMessage {
     pub message: String,
+}
+
+pub enum Config {
+    Byte(u16, u8),
+    Int(u16, u32),
+}
+
+impl Packet for Config {
+    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+        match self {
+            Config::Byte(id, value) => {
+                src.put_u16_le(*id);
+                src.put_u8(*value);
+            }
+            Config::Int(id, value) => {
+                src.put_u16_le(*id);
+                src.put_u32_me(*value)
+            }
+        }
+        Ok(())
+    }
+    
+    fn get_type(&self) -> PacketType {
+        match self {
+            Config::Byte(_, _) => PacketType::ConfigByte,
+            Config::Int(_, _) => PacketType::ConfigInt,
+        }
+    }
 }

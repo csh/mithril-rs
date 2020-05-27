@@ -2,9 +2,7 @@ use std::any::Any;
 
 use ahash::AHashMap;
 use bytes::BytesMut;
-use num_derive::ToPrimitive;
 use once_cell::sync::Lazy;
-use strum_macros::EnumIter;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PacketId {
@@ -35,7 +33,7 @@ pub enum PacketStage {
     Gameplay,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, EnumIter, ToPrimitive)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PacketType {
     // Handshake
     HandshakeHello,
@@ -63,7 +61,7 @@ pub enum PacketType {
     ThirdPlayerAction,
     RemoveIgnore,
     FourthItemOption,
-    SpamPacket,
+    SpamPacket(PacketLength),
     ArrowKey,
     FifthItemOption,
     PrivacyOption,
@@ -113,7 +111,8 @@ pub enum PacketType {
     Logout,
     OpenInterface,
     SendFriend,
-    Config,
+    ConfigByte,
+    ConfigInt,
     UpdateRunEnergy,
     ClearRegion,
     SetWidgetModel,
@@ -151,6 +150,7 @@ pub enum PacketType {
     // endregion
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum PacketLength {
     Fixed(usize),
     VariableByte,
@@ -261,11 +261,11 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(77, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::VariableByte),
     );
     packets.insert(
         PacketId::new(78, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::Fixed(0)),
     );
     packets.insert(
         PacketId::new(86, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -301,7 +301,7 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(121, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::Fixed(0)),
     );
     packets.insert(
         PacketId::new(122, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -361,7 +361,7 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(165, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::VariableByte),
     );
     packets.insert(
         PacketId::new(185, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -373,7 +373,7 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(189, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::Fixed(1)),
     );
     packets.insert(
         PacketId::new(192, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -385,7 +385,7 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(210, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::Fixed(4)),
     );
     packets.insert(
         PacketId::new(214, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -401,7 +401,7 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     );
     packets.insert(
         PacketId::new(226, PacketDirection::Serverbound, PacketStage::Gameplay),
-        PacketType::SpamPacket,
+        PacketType::SpamPacket(PacketLength::VariableByte),
     );
     packets.insert(
         PacketId::new(236, PacketDirection::Serverbound, PacketStage::Gameplay),
@@ -536,6 +536,10 @@ static PACKET_TYPE_MAP: Lazy<AHashMap<PacketType, PacketId>> = Lazy::new(|| {
 });
 
 impl PacketType {
+    pub fn iter() -> impl Iterator<Item = &'static PacketType> {
+        PACKET_TYPE_MAP.keys()
+    }
+
     pub fn get_from_id(packet_id: PacketId) -> Option<PacketType> {
         PACKET_ID_MAP.get(&packet_id).copied()
     }
@@ -548,7 +552,7 @@ impl PacketType {
 
     pub fn create(&self) -> anyhow::Result<Box<dyn Packet>> {
         match crate::packets::PACKET_FACTORIES.get(&self) {
-            None => anyhow::bail!("packet factory does not exist"),
+            None => anyhow::bail!("packet factory does not exist for {:?}", &self),
             Some(factory) => Ok(factory.create()),
         }
     }
@@ -572,14 +576,13 @@ impl PacketType {
             PacketType::ThirdPlayerAction => Some(PacketLength::Fixed(2)),
             PacketType::RemoveIgnore => Some(PacketLength::Fixed(8)),
             PacketType::FourthItemOption => Some(PacketLength::Fixed(6)),
-            PacketType::SpamPacket => Some(PacketLength::Fixed(0)),
+            PacketType::SpamPacket(len) => Some(*len),
             PacketType::ArrowKey => Some(PacketLength::Fixed(4)),
             PacketType::FifthItemOption => Some(PacketLength::Fixed(6)),
             PacketType::PrivacyOption => Some(PacketLength::Fixed(3)),
             PacketType::PlayerDesign => Some(PacketLength::Fixed(13)),
             PacketType::SecondItemAction => Some(PacketLength::Fixed(6)),
             PacketType::FlashingTabClicked => Some(PacketLength::Fixed(1)),
-            PacketType::SpamPacket => Some(PacketLength::Fixed(0)),
             PacketType::FirstItemOption => Some(PacketLength::Fixed(6)),
             PacketType::FirstPlayerAction => Some(PacketLength::Fixed(2)),
             PacketType::FourthItemAction => Some(PacketLength::Fixed(6)),
@@ -594,10 +597,8 @@ impl PacketType {
             PacketType::FirstNpcAction => Some(PacketLength::Fixed(2)),
             PacketType::Button => Some(PacketLength::Fixed(2)),
             PacketType::AddFriend => Some(PacketLength::Fixed(8)),
-            PacketType::SpamPacket => Some(PacketLength::Fixed(1)),
             PacketType::ItemOnObject => Some(PacketLength::Fixed(12)),
             PacketType::EnteredAmount => Some(PacketLength::Fixed(4)),
-            PacketType::SpamPacket => Some(PacketLength::Fixed(4)),
             PacketType::SwitchItem => Some(PacketLength::Fixed(7)),
             PacketType::RemoveFriend => Some(PacketLength::Fixed(8)),
             PacketType::ReportAbuse => Some(PacketLength::Fixed(10)),
@@ -608,7 +609,6 @@ impl PacketType {
             PacketType::SecondObjectAction => Some(PacketLength::Fixed(6)),
             PacketType::PublicChat => Some(PacketLength::VariableByte),
             PacketType::FlaggedMouseEvent => Some(PacketLength::VariableByte),
-            PacketType::SpamPacket => Some(PacketLength::VariableByte),
             PacketType::Walk => Some(PacketLength::VariableByte),
             PacketType::Command => Some(PacketLength::VariableByte),
             PacketType::PrivateChat => Some(PacketLength::VariableByte),
