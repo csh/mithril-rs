@@ -1,13 +1,14 @@
+use std::iter;
+
 use ahash::AHashMap;
 use specs::Entity;
-use num_traits::cast::ToPrimitive;
 use parking_lot::{Mutex, RwLock};
-use strum::IntoEnumIterator;
 
 use mithril_core::net::{cast_packet, Packet, PacketType};
+use smallvec::SmallVec;
 
 pub struct Packets {
-    buffer: Vec<PacketsInner>,
+    buffer: AHashMap<PacketType, PacketsInner>,
 }
 
 impl Default for Packets {
@@ -18,16 +19,18 @@ impl Default for Packets {
 
 impl Packets {
     pub fn new() -> Self {
+        let mut buffer = AHashMap::new();
+        PacketType::iter().for_each(|packet_type| {
+            buffer.insert(*packet_type, PacketsInner::default());
+        });
         Self {
-            buffer: PacketType::iter()
-                .map(|_| PacketsInner::default())
-                .collect(),
+            buffer
         }
     }
 
     pub fn push(&self, player: Entity, packet: Box<dyn Packet>) {
-        let index = packet.get_type().to_usize().unwrap();
-        self.buffer[index].push(player, packet);
+        self.buffer.get(&packet.get_type())
+            .and_then(|inner| Some(inner.push(player, packet)));
     }
 
     pub fn received_from<T>(
@@ -38,10 +41,13 @@ impl Packets {
     where
         T: Packet + 'static,
     {
-        let index = packet_type.to_usize().unwrap();
-        self.buffer[index]
-            .received_from(player)
-            .map(|boxed| cast_packet(boxed))
+        self.buffer.get(&packet_type)
+            .map(|inner| {
+                let packets = inner.received_from(player)
+                    .map(|packet| cast_packet(packet));
+                Either::Left(packets)
+            })
+            .unwrap_or(Either::Right(iter::empty()))
     }
 }
 
@@ -67,7 +73,7 @@ where
 
 #[derive(Default)]
 struct PacketsInner {
-    inner: RwLock<AHashMap<Entity, Mutex<Vec<Box<dyn Packet>>>>>,
+    inner: RwLock<AHashMap<Entity, Mutex<SmallVec<[Box<dyn Packet>; 4]>>>>,
 }
 
 impl PacketsInner {
@@ -77,16 +83,14 @@ impl PacketsInner {
             queued.lock().push(packet);
         } else {
             drop(guard);
-            let mut queued = Vec::with_capacity(8);
-            queued.push(packet);
-            self.inner.write().insert(player, Mutex::new(queued));
+            self.inner.write().insert(player, Mutex::new(iter::once(packet).collect()));
         }
     }
 
     fn received_from(&self, player: Entity) -> impl Iterator<Item = Box<dyn Packet>> {
         let guard = self.inner.read();
         if let Some(queued) = guard.get(&player) {
-            let vec = queued.lock().drain(..).collect::<Vec<Box<dyn Packet>>>();
+            let vec = queued.lock().drain(..).collect::<SmallVec<[Box<dyn Packet>; 4]>>();
             Either::Left(vec.into_iter())
         } else {
             Either::Right(std::iter::empty())

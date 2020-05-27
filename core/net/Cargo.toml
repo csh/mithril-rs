@@ -9,13 +9,9 @@ mithril-codegen = { path = "../../codegen" }
 mithril-text = { path = "../text" }
 
 tokio-util = { version = "0.3", features = ["codec"] }
-strum_macros = "0.18"
 rand_isaac = "0.2"
-num-traits = "0.2"
-num-derive = "0.3"
 once_cell = "1.4"
 anyhow = "1.0"
-strum = "0.18"
 bytes = "0.5"
 ahash = "0.3"
 rand = "0.7"

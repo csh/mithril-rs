@@ -5,7 +5,7 @@ pub use game::*;
 pub use handshake::*;
 
 use crate::packet::PacketFactory;
-use crate::PacketType;
+use crate::{PacketType, PacketLength};
 
 mod game;
 mod handshake;
@@ -77,6 +77,7 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     default_factory!(factories, HandshakeHello);
     default_factory!(factories, HandshakeAttemptConnect);
     default_factory!(factories, KeepAlive);
+    default_factory!(factories, FocusUpdate);
     default_factory!(factories, PublicChat);
     default_factory!(factories, PrivateChat);
     default_factory!(factories, AddFriend);
@@ -98,7 +99,6 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     default_factory!(factories, ArrowKey);
     default_factory!(factories, EnteredAmount);
     default_factory!(factories, ReportAbuse);
-    default_factory!(factories, SpamPacket);
     default_factory!(factories, TakeTileItem);
     default_factory!(factories, MouseClicked);
     default_factory!(factories, PlayerDesign);
@@ -121,6 +121,23 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     player_action_factory!(factories, ThirdPlayerAction);
     player_action_factory!(factories, FourthPlayerAction);
     player_action_factory!(factories, FifthPlayerAction);
+
+    factories.insert(
+        PacketType::SpamPacket(PacketLength::VariableByte),
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::VariableByte)))
+    );
+    factories.insert(
+        PacketType::SpamPacket(PacketLength::Fixed(0)),
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(0))))
+    );
+    factories.insert(
+        PacketType::SpamPacket(PacketLength::Fixed(1)),
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(1))))
+    );
+    factories.insert(
+        PacketType::SpamPacket(PacketLength::Fixed(4)),
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(4))))
+    );
 
     factories
 });
