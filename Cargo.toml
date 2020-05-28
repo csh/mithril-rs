@@ -4,6 +4,7 @@ members = [
     "core",
     "core/net",
     "core/text",
+    "core/pos",
 
     "server",
     "server/net"

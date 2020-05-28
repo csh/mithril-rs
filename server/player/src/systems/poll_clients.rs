@@ -3,6 +3,7 @@ use mithril_server_net::{NetworkManager, ListenerToServerMessage, ServerToListen
 use mithril_server_types::{ServerToWorkerMessage, AuthenticationResult, Name, Network};
 use mithril_core::net::packets::{SwitchTabInterface, IdAssignment};
 use parking_lot::Mutex;
+use mithril_core::pos::Position;
 
 pub struct PollNewClients;
 
@@ -11,10 +12,11 @@ impl<'a> System<'a> for PollNewClients {
         Entities<'a>,
         ReadExpect<'a, NetworkManager>,
         WriteStorage<'a, Name>,
-        WriteStorage<'a, Network>
+        WriteStorage<'a, Network>,
+        WriteStorage<'a, Position>,
     );
 
-    fn run(&mut self, (entities, network_manager, mut named_storage, mut network_storage): Self::SystemData) {
+    fn run(&mut self, (entities, network_manager, mut named_storage, mut network_storage, mut pos_storage): Self::SystemData) {
         while let Ok(msg) = network_manager.rx.lock().try_recv() {
             match msg {
                 ListenerToServerMessage::CreateEntity => {
@@ -66,6 +68,7 @@ impl<'a> System<'a> for PollNewClients {
 
                     named_storage.insert(new_client.entity, Name(_username)).unwrap();
                     network_storage.insert(new_client.entity, network).unwrap();
+                    pos_storage.insert(new_client.entity, Position::default()).unwrap();
                 },
             }
         }

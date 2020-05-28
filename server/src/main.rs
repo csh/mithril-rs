@@ -76,7 +76,7 @@ pub async fn run(runtime: Handle) {
 }
 
 fn run_loop(state: &mut GameState) {
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(20 as f64);
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(6 as f64);
     loop {
         if state.shutdown_rx.try_recv().is_ok() {
             return;
@@ -84,7 +84,7 @@ fn run_loop(state: &mut GameState) {
 
         loop_helper.loop_start();
         state.dispatcher.dispatch(&mut state.world);
-        // TODO: Implement game logic using Legion or Specs
+        state.world.maintain();
         loop_helper.loop_sleep();
     }
 }

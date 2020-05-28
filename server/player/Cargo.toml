@@ -11,5 +11,6 @@ mithril-server-net = { path = "../net" }
 mithril-core = { path = "../../core" }
 
 parking_lot = "0.10.2"
-specs = "0.16"
+specs = { version = "0.16", features = ["shred-derive"] }
 log = "0.4"
+rand = "0.7"
