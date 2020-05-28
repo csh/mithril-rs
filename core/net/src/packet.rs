@@ -443,12 +443,28 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
         PacketType::DisplayCrossbones,
     );
     packets.insert(
+        PacketId::new(64, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::ClearRegion,
+    );
+    packets.insert(
+        PacketId::new(65, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::NpcSynchronization,
+    );
+    packets.insert(
         PacketId::new(71, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::SwitchTabInterface,
     );
     packets.insert(
+        PacketId::new(73, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::RegionChange,
+    );
+    packets.insert(
         PacketId::new(75, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::SetWidgetNpcModel,
+    );
+    packets.insert(
+        PacketId::new(81, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::PlayerSynchronization,
     );
     packets.insert(
         PacketId::new(97, PacketDirection::Clientbound, PacketStage::Gameplay),

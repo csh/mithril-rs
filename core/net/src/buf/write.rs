@@ -61,9 +61,6 @@ impl BitWriter {
     }
 }
 
-/// A helper type for scoping bit-level buffer writes.
-type BitWriterFn = fn(BitWriter) -> BitWriter;
-
 /// A set of helper methods that extend the `BufMut` object with functionality required to fully
 /// encode packets bound for the client.
 pub trait GameBufMut: BufMut {
@@ -86,7 +83,9 @@ pub trait GameBufMut: BufMut {
     ///     writer
     /// });
     /// ```
-    fn put_bits(&mut self, write_fn: BitWriterFn) {
+    fn put_bits<B>(&mut self, write_fn: B)
+        where B: FnOnce(BitWriter) -> BitWriter
+    {
         let writer = write_fn(BitWriter::new());
         let written = (writer.index + 7) / 8;
         let mut buf = writer.inner;

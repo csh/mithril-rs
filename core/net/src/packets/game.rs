@@ -1,3 +1,4 @@
+use mithril_pos::Position;
 use super::prelude::*;
 use crate::PacketLength;
 
@@ -547,5 +548,118 @@ impl Packet for Config {
             Config::Byte(_, _) => PacketType::ConfigByte,
             Config::Int(_, _) => PacketType::ConfigInt,
         }
+    }
+}
+
+pub struct RegionChange {
+    pub position: Position
+}
+
+impl Packet for RegionChange {
+    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+        let central_x = self.position.get_x() / 8;
+        let central_y = self.position.get_y() / 8;
+        src.put_u16t(central_x as u16, Transform::Add);
+        src.put_u16(central_y as u16);
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        PacketType::RegionChange
+    }
+}
+
+pub struct ClearRegion {
+    pub player: Position,
+    pub region: Position
+}
+
+impl Packet for ClearRegion {
+    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+        let (local_x, local_y) = self.region.get_relative(self.player);
+        src.put_u8t(local_x, Transform::Negate);
+        src.put_u8t(local_y, Transform::Subtract);
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        PacketType::ClearRegion
+    }
+}
+
+pub enum EntityMovement {
+    Teleport {
+        destination: Position,
+        current: Position,
+        changed_region: bool,
+    },
+    Move {
+        direction: i32
+    }
+}
+
+pub struct PlayerSynchronization {
+    pub player_update: Option<EntityMovement>,
+}
+
+impl Packet for PlayerSynchronization {
+    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+        match self.player_update {
+            Some(EntityMovement::Teleport { destination, current, changed_region }) => {
+                src.put_bits(|mut writer| {
+                    writer.put_bits(1, 1);
+                    writer.put_bits(2, 3);
+                    writer.put_bits(2, destination.get_plane() as _);
+                    writer.put_bits(1, if changed_region { 1 } else { 0 });
+                    writer.put_bits(1, 0);
+                    let (x, y) = destination.get_relative(current);
+                    writer.put_bits(7, y as _);
+                    writer.put_bits(7, x as _);
+                    writer
+                });
+            }
+            Some(EntityMovement::Move { direction }) => {
+                src.put_bits(|mut writer| {
+                    writer.put_bits(1, 1);
+                    writer.put_bits(2, 1);
+                    writer.put_bits(3, direction as _);
+                    writer.put_bits(1, 0);
+                    writer
+                });
+            }
+            None => {
+                src.put_bits(|mut writer| {
+                    writer.put_bits(1, 0);
+                    writer
+                });
+            }
+        }
+
+        src.put_bits(|mut writer| {
+            writer.put_bits(8, 0); // zero players near us to update
+            writer
+        });
+
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        PacketType::PlayerSynchronization
+    }
+}
+
+pub struct NpcSynchronization;
+
+impl Packet for NpcSynchronization {
+    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+        src.put_bits(|mut writer| {
+            writer.put_bits(8, 0);
+            writer
+        });
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        PacketType::NpcSynchronization
     }
 }
