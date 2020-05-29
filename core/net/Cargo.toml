@@ -8,6 +8,7 @@ edition = "2018"
 mithril-codegen = { path = "../../codegen" }
 mithril-text = { path = "../text" }
 mithril-pos = { path = "../pos" }
+mithril-buf = { path = "../buf" }
 
 tokio-util = { version = "0.3", features = ["codec"] }
 rand_isaac = "0.2"

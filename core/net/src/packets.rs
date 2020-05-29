@@ -13,7 +13,7 @@ mod handshake;
 mod prelude {
     pub use bytes::{Buf, BufMut, BytesMut};
 
-    pub use crate::buf::*;
+    pub use mithril_buf::*;
     pub use crate::{Packet, PacketType};
 }
 
