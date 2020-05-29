@@ -1,0 +1,9 @@
+[package]
+name = "mithril-buf"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[dependencies]
+once_cell = "1.4"
+bytes = "0.5"
