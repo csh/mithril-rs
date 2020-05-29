@@ -1,7 +1,10 @@
 use mithril_core::pos::Position;
-use mithril_server_types::{Name, Network, PreviousPosition};
+use mithril_server_types::{Name, Network, PreviousPosition, Pathfinder};
 use specs::prelude::*;
-use mithril_core::net::packets::{PlayerSynchronization, EntityMovement, NpcSynchronization};
+use mithril_core::net::packets::{PlayerSynchronization, EntityMovement, NpcSynchronization, Walk};
+use mithril_server_packets::Packets;
+use std::sync::Arc;
+use mithril_core::net::PacketType;
 
 #[derive(SystemData)]
 pub struct PlayerSyncStorage<'a> {
@@ -48,10 +51,11 @@ impl<'a> System<'a> for PlayerSync {
                     log::debug!("Spawning {} entities near {}", local_new.len(), name);
                 }
 
-                let region_changed = match previous {
+                let update_region = match previous {
                     Some(previous) => {
                         let previous = previous.0;
-                        !(previous.get_region_x() == current_pos.get_region_x() && previous.get_region_y() == current_pos.get_region_y())
+                        // Are we within region width in tiles * viewing distance
+                        !previous.within_distance(*current_pos, 8 * 15)
                     }
                     None => true
                 };
@@ -63,9 +67,7 @@ impl<'a> System<'a> for PlayerSync {
                     None => false
                 };
 
-                if region_changed {
-                    log::debug!("{} has moved", name);
-
+                if update_region {
                     network.send(mithril_core::net::packets::RegionChange {
                         position: *current_pos,
                     });
@@ -74,16 +76,14 @@ impl<'a> System<'a> for PlayerSync {
                         player_update: Some(EntityMovement::Teleport {
                             destination: *current_pos,
                             current: *current_pos,
-                            changed_region: region_changed
+                            changed_region: update_region
                         })
                     });
                 } else if has_moved {
-                    use rand::Rng;
-                    let mut rng = rand::thread_rng();
-                    let direction = rng.gen_range(0, 7);
+                    let direction = previous.unwrap().0.direction_between(*current_pos);
                     network.send(PlayerSynchronization {
                         player_update: Some(EntityMovement::Move {
-                            direction
+                            direction: direction as i32
                         })
                     });
                 } else {
@@ -118,6 +118,32 @@ impl<'a> System<'a> for ResetPreviousPosition {
             .par_join()
             .for_each(|(entity, current, _)| {
               lazy.insert(entity, PreviousPosition(*current));
+            });
+    }
+}
+
+pub struct EntityPathfinding;
+
+impl<'a> System<'a> for EntityPathfinding {
+    type SystemData = (
+        Entities<'a>,
+        ReadExpect<'a, Arc<Packets>>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Pathfinder>
+    );
+
+    fn run(&mut self, (entities, packets, mut pos_storage, mut path_storage): Self::SystemData) {
+        (&entities, &mut pos_storage, &mut path_storage).par_join()
+            .for_each(|(entity, current, pathfinder)| {
+                let walk_packet = packets.received_from::<Walk>(entity, PacketType::Walk).last();
+                if let Some(walk_packet) = walk_packet {
+                    pathfinder.set_running(walk_packet.running);
+                    pathfinder.walk_path(*current, walk_packet.path);
+                }
+
+                if let Some(next_step) = pathfinder.next_step() {
+                    *current = next_step
+                }
             });
     }
 }

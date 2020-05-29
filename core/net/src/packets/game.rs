@@ -326,63 +326,38 @@ impl Packet for PlayerDesign {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Walk {
-    pub path: Vec<(i16, i16)>,
+    pub packet_type: PacketType,
+    pub path: Vec<Position>,
     pub running: bool,
 }
 
 impl Packet for Walk {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        let length = src.remaining();
+        let length = match self.packet_type {
+            PacketType::Walk => src.remaining(),
+            PacketType::WalkWithAnticheat => src.remaining() - 14,
+            _ => unreachable!("packet type should always be Walk or WalkWithAnticheat")
+        };
         let steps = (length - 5) / 2;
-        let mut path: Vec<(i16, i16)> = Vec::with_capacity(steps + 1);
-        let x = src.get_u16t_le(Transform::Add);
-        for i in 0..steps {
-            path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
+        let mut path = Vec::with_capacity(steps + 1);
+        let x = src.get_u16t_le(Transform::Add) as i16;
+        for _ in 0..steps {
+            path.push((src.get_i8() as i16, src.get_i8() as i16));
         }
-        let y = src.get_u16_le();
+        let y = src.get_i16_le();
         self.running = src.get_u8t(Transform::Negate) == 1;
-        path.insert(0, (x as i16, y as i16));
         self.path = path
             .iter()
-            .map(|(a, b)| (a + x as i16, b + y as i16))
+            .map(|(a, b)| Position::new(a + x, b + y))
             .collect::<Vec<_>>();
+        self.path.insert(0, Position::new(x, y));
         Ok(())
     }
 
     fn get_type(&self) -> PacketType {
-        PacketType::Walk
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct WalkWithAnticheat {
-    pub path: Vec<(i16, i16)>,
-    pub running: bool,
-}
-
-impl Packet for WalkWithAnticheat {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        let length = src.remaining() - 14;
-        let steps = (length - 5) / 2;
-        let mut path: Vec<(i16, i16)> = Vec::with_capacity(steps + 1);
-        let x = src.get_u16t_le(Transform::Add);
-        for i in 0..steps {
-            path.insert(i, (src.get_i8() as i16, src.get_i8() as i16))
-        }
-        let y = src.get_u16_le();
-        self.running = src.get_u8t(Transform::Negate) == 1;
-        path.insert(0, (x as i16, y as i16));
-        self.path = path
-            .iter()
-            .map(|(a, b)| (a + x as i16, b + y as i16))
-            .collect::<Vec<_>>();
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::WalkWithAnticheat
+        self.packet_type
     }
 }
 
@@ -587,6 +562,7 @@ impl Packet for ClearRegion {
     }
 }
 
+#[derive(Debug)]
 pub enum EntityMovement {
     Teleport {
         destination: Position,
@@ -598,6 +574,7 @@ pub enum EntityMovement {
     }
 }
 
+#[derive(Debug)]
 pub struct PlayerSynchronization {
     pub player_update: Option<EntityMovement>,
 }
