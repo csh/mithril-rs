@@ -102,7 +102,6 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     default_factory!(factories, TakeTileItem);
     default_factory!(factories, MouseClicked);
     default_factory!(factories, PlayerDesign);
-    default_factory!(factories, Walk);
 
     item_option_factory!(factories, FirstItemOption);
     item_option_factory!(factories, SecondItemOption);
@@ -121,6 +120,23 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     player_action_factory!(factories, ThirdPlayerAction);
     player_action_factory!(factories, FourthPlayerAction);
     player_action_factory!(factories, FifthPlayerAction);
+
+    factories.insert(
+        PacketType::Walk,
+        PacketFactory::new(|| Box::new(Walk {
+            packet_type: PacketType::Walk,
+            path: Vec::default(),
+            running: false
+        }))
+    );
+    factories.insert(
+        PacketType::WalkWithAnticheat,
+        PacketFactory::new(|| Box::new(Walk {
+            packet_type: PacketType::WalkWithAnticheat,
+            path: Vec::default(),
+            running: false
+        }))
+    );
 
     factories.insert(
         PacketType::SpamPacket(PacketLength::VariableByte),

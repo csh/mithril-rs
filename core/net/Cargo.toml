@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 mithril-codegen = { path = "../../codegen" }
 mithril-text = { path = "../text" }
+mithril-pos = { path = "../pos" }
 
 tokio-util = { version = "0.3", features = ["codec"] }
 rand_isaac = "0.2"
