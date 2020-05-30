@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 mithril-net = { path = "net" }
 mithril-pos = { path = "pos" }
+mithril-fs = { path = "fs" }
