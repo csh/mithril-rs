@@ -19,6 +19,17 @@ pub trait GameBuf: Buf {
         result
     }
 
+    /// Attempts to read a `u8` from self, if the the value of the byte > 127 then read another byte
+    /// to compose a `u16`.
+    fn get_smart(&mut self) -> u16 {
+        let first = self.get_u8() as u16;
+        if first > 127 {
+            (first << 8 | self.get_u8() as u16) - 32768
+        } else {
+            first
+        }
+    }
+
     /// Reads a `u8` from the `Buf` whilst applying a transformation.
     fn get_u8t(&mut self, transform: Transform) -> u8 {
         match transform {
