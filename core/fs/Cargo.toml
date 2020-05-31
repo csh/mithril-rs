@@ -17,4 +17,5 @@ bzip2 = "0.3"
 log = "0.4"
 
 [dev-dependencies]
+ci_info = "*"
 png = "*"
