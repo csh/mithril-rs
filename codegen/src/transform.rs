@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use proc_macro2::{TokenStream, Span, Punct, Spacing};
-use syn::{Attribute, Error, Lit, LitStr, Meta};
+use proc_macro2::{Punct, Spacing, Span, TokenStream};
 use quote::{ToTokens, TokenStreamExt};
+use syn::{Attribute, Error, Lit, LitStr, Meta};
 
 #[derive(Debug)]
 pub enum Transform {
