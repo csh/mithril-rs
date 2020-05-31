@@ -8,14 +8,14 @@ use std::io::BufWriter;
 
 use mithril_fs::*;
 
-fn plane_to_rgba(map_file: &defs::MapFile, plane: usize) -> bytes::Bytes {
+fn plane_to_rgba(plane: &defs::MapPlane) -> bytes::Bytes {
     use bytes::BufMut;
     let mut buf = bytes::BytesMut::new();
     for x in 0..64 {
         for z in 0..64 {
-            let rgba: [u8; 4] = if map_file.is_bridge(plane, x, z) {
+            let rgba: [u8; 4] = if plane.is_bridge(x, z) {
                 [118, 94, 18, 255]
-            } else if map_file.is_walkable(plane, x, z) {
+            } else if plane.is_walkable(x, z) {
                 [30, 150, 50, 255]
             } else {
                 [0, 0, 0, 0]
@@ -61,7 +61,7 @@ fn main() {
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header().unwrap();
         writer
-            .write_image_data(&plane_to_rgba(map_file, 0)[..])
+            .write_image_data(&plane_to_rgba(map_file.get_plane(0))[..])
             .expect("write_image_data");
     });
 }

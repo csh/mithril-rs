@@ -158,6 +158,18 @@ impl MapPlane {
         assert!(z < MAP_WIDTH, "z out of bounds; {}", z);
         &self.tiles[x][z]
     }
+
+    pub fn is_walkable(&self, x: usize, z: usize) -> bool {
+        self.get_tile(x, z).is_walkable()
+    }
+
+    pub fn is_bridge(&self, x: usize, z: usize) -> bool {
+        self.get_tile(x, z).is_bridge()
+    }
+
+    pub fn height(&self, x: usize, z: usize) -> u16 {
+        self.get_tile(x, z).height
+    }
 }
 
 impl Default for MapPlane {
@@ -247,20 +259,20 @@ impl MapFile {
         &self.planes[plane]
     }
 
-    pub fn get(&self, plane: usize, x: usize, z: usize) -> &Tile {
+    pub fn get_tile(&self, plane: usize, x: usize, z: usize) -> &Tile {
         self.get_plane(plane).get_tile(x, z)
     }
 
     pub fn is_walkable(&self, plane: usize, x: usize, z: usize) -> bool {
-        self.get(plane, x, z).is_walkable()
+        self.get_tile(plane, x, z).is_walkable()
     }
 
     pub fn is_bridge(&self, plane: usize, x: usize, z: usize) -> bool {
-        self.get(plane, x, z).is_bridge()
+        self.get_tile(plane, x, z).is_bridge()
     }
 
     pub fn height(&self, plane: usize, x: usize, z: usize) -> u16 {
-        self.get(plane, x, z).height
+        self.get_tile(plane, x, z).height
     }
 }
 
