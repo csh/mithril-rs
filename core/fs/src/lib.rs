@@ -173,6 +173,10 @@ mod tests {
 
     #[test]
     pub fn load_map_definitions() {
+        if ci_info::is_ci() {
+            return;
+        }
+
         let mut cache = open_filesystem();
         let map_indices = defs::MapIndex::load(&mut cache).expect("map_indices");
 
@@ -186,12 +190,20 @@ mod tests {
 
     #[test]
     pub fn load_entity_definitions() {
+        if ci_info::is_ci() {
+            return;
+        }
+
         let mut cache = open_filesystem();
         let _ = defs::EntityDefinition::load(&mut cache).expect("entities");
     }
 
     #[test]
     pub fn load_item_definitions() {
+        if ci_info::is_ci() {
+            return;
+        }
+
         let mut cache = open_filesystem();
         let items = defs::ItemDefinition::load(&mut cache).expect("items");
         items
