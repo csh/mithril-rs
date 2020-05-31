@@ -172,6 +172,19 @@ mod tests {
     }
 
     #[test]
+    pub fn load_map_definitions() {
+        let mut cache = open_filesystem();
+        let map_indices = defs::MapIndex::load(&mut cache).expect("map_indices");
+
+        let map_data = map_indices.values().take(10).map(|index| {
+            let map_file = defs::MapFile::load(&mut cache, index).expect("map_file");
+            let map_objects = defs::MapObject::load(&mut cache, index).expect("map_objects");
+            (map_file, map_objects)
+        });
+        dbg!(map_data.len());
+    }
+
+    #[test]
     pub fn load_entity_definitions() {
         let mut cache = open_filesystem();
         let _ = defs::EntityDefinition::load(&mut cache).expect("entities");

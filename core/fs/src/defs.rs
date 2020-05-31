@@ -1,6 +1,6 @@
 pub use entity::{EntityAnimation, EntityDefinition};
 pub use item::ItemDefinition;
-pub use map::{decode_map_file, MapIndex, MapObject};
+pub use map::{MapFile, MapIndex, MapObject, MapPlane};
 pub use object::ObjectDefinition;
 
 mod entity;

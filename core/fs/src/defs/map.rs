@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter, Result};
 
 use bytes::Buf;
 
@@ -20,53 +20,9 @@ const LOWEST_CONTINUED_TYPE: u8 = 2;
 
 pub struct MapIndex {
     packed_coordinates: u16,
-    pub map_file_id: u16,
-    pub object_file_id: u16,
+    map_file_id: u16,
+    object_file_id: u16,
     member_only: bool,
-}
-
-#[derive(Debug)]
-pub struct MapObject {
-    id: u16,
-    ty: u16,
-    orientation: u8,
-    packed_coordinates: i32,
-}
-
-impl MapObject {
-    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> anyhow::Result<Vec<Self>> {
-        let buf = cache.get_file(4, index.object_file_id as u64)?;
-        let mut buf = crate::compression::decompress_gzip(buf)?;
-
-        let mut objects = Vec::new();
-
-        let mut id = -1;
-        let mut id_offset = buf.get_smart() as i32;
-        while id_offset != 0 {
-            id += id_offset as i32;
-
-            let mut packed = 0;
-            let mut position_offset = buf.get_smart() as i32;
-            while position_offset != 0 {
-                packed += position_offset - 1;
-
-                let attributes = buf.get_u8();
-                let ty = attributes >> 2;
-                let orientation = attributes & 0x3;
-                objects.push(MapObject {
-                    id: id as u16,
-                    ty: ty as u16,
-                    orientation: orientation as u8,
-                    packed_coordinates: packed,
-                });
-                position_offset = buf.get_smart() as i32;
-            }
-
-            id_offset = buf.get_smart() as i32;
-        }
-
-        Ok(objects)
-    }
 }
 
 impl MapIndex {
@@ -106,10 +62,14 @@ impl MapIndex {
     pub fn get_y(&self) -> u16 {
         (self.packed_coordinates & 0xFF) * MAP_WIDTH as u16
     }
+
+    pub fn is_member_only(&self) -> bool {
+        self.member_only
+    }
 }
 
 impl Debug for MapIndex {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut ds = f.debug_struct("MapIndex");
         ds.field("x", &self.get_x());
         ds.field("y", &self.get_y());
@@ -120,38 +80,192 @@ impl Debug for MapIndex {
     }
 }
 
-#[inline]
-fn assert_bounds(x: usize, z: usize) {
-    assert!(x < MAP_WIDTH, "x >= {}", MAP_WIDTH);
-    assert!(z < MAP_WIDTH, "z >= {}", MAP_WIDTH);
+pub struct MapObject {
+    id: u16,
+    variant: u16,
+    orientation: u8,
+    packed_coordinates: i16,
 }
 
-#[derive(Debug)]
-pub struct Plane {
-    tiles: Vec<Vec<Tile>>,
+impl MapObject {
+    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> anyhow::Result<Vec<Self>> {
+        let buf = cache.get_file(4, index.object_file_id as u64)?;
+        let mut buf = crate::compression::decompress_gzip(buf)?;
+
+        let mut objects = Vec::new();
+
+        let mut id = -1;
+        let mut id_offset = buf.get_smart() as i32;
+        while id_offset != 0 {
+            id += id_offset as i32;
+
+            let mut packed = 0;
+            let mut position_offset = buf.get_smart() as i16;
+            while position_offset != 0 {
+                packed += position_offset - 1;
+
+                let attributes = buf.get_u8();
+                let ty = attributes >> 2;
+                let orientation = attributes & 0x3;
+                objects.push(MapObject {
+                    id: id as u16,
+                    variant: ty as u16,
+                    orientation: orientation as u8,
+                    packed_coordinates: packed,
+                });
+                position_offset = buf.get_smart() as i16;
+            }
+
+            id_offset = buf.get_smart() as i32;
+        }
+
+        Ok(objects)
+    }
+
+    pub fn get_x(&self) -> i16 {
+        (self.packed_coordinates >> 6) & 0x3F
+    }
+
+    pub fn get_y(&self) -> i16 {
+        self.packed_coordinates & 0x3F
+    }
+
+    pub fn get_plane(&self) -> i16 {
+        (self.packed_coordinates >> 12) & 0x3
+    }
 }
 
-impl Plane {
-    pub fn get(&self, x: usize, z: usize) -> Option<&Tile> {
-        assert_bounds(x, z);
-        match self.tiles.get(x) {
-            Some(tiles) => tiles.get(z),
-            None => unreachable!("out of bounds"),
+impl Debug for MapObject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut ds = f.debug_struct("MapObject");
+        ds.field("id", &self.id);
+        ds.field("variant", &self.variant);
+        ds.field("x", &self.get_x());
+        ds.field("z", &self.get_y());
+        ds.field("plane", &self.get_plane());
+        ds.field("orientation", &self.orientation);
+        ds.finish()
+    }
+}
+
+pub struct MapPlane {
+    tiles: [[Tile; MAP_WIDTH]; MAP_WIDTH],
+}
+
+impl MapPlane {
+    pub fn get_tile(&self, x: usize, z: usize) -> &Tile {
+        assert!(x < MAP_WIDTH, "x out of bounds; {}", x);
+        assert!(z < MAP_WIDTH, "z out of bounds; {}", z);
+        &self.tiles[x][z]
+    }
+}
+
+impl Default for MapPlane {
+    fn default() -> Self {
+        Self {
+            tiles: [[Tile::default(); MAP_WIDTH]; MAP_WIDTH],
+        }
+    }
+}
+
+pub struct MapFile {
+    planes: Vec<MapPlane>,
+}
+
+impl MapFile {
+    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> anyhow::Result<Self> {
+        let file = cache
+            .get_file(4, index.map_file_id as u64)
+            .expect("failed to read map_file_id");
+
+        let mut buf = crate::compression::decompress_gzip(file).expect("gzip decode failed");
+        let mut map_file = MapFile::new();
+        for plane in 0..MAP_PLANES {
+            for x in 0..MAP_WIDTH {
+                for z in 0..MAP_WIDTH {
+                    let mut tile = map_file.planes[plane].tiles[x][z];
+                    let mut read = LOWEST_CONTINUED_TYPE;
+                    // TODO: Optimise. ASAP.
+                    while read >= LOWEST_CONTINUED_TYPE {
+                        read = buf.get_u8();
+                        match TileUpdate::from(read) {
+                            TileUpdate::Height => {
+                                tile.height = if plane == 0 {
+                                    DEFAULT_TILE_HEIGHT
+                                } else {
+                                    map_file.planes[plane].tiles[x][z].height
+                                        + PLANE_HEIGHT_DIFFERENCE
+                                }
+                            }
+                            TileUpdate::HeightFromLower => {
+                                let height = buf.get_u8();
+                                let below = if plane == 0 {
+                                    0
+                                } else {
+                                    map_file.planes[plane].tiles[x][z].height
+                                };
+
+                                tile.height = if height == 1 { 0 } else { height as u16 }
+                                    * FROM_LOWER_MULTIPLICAND
+                                    + below as u16;
+                            }
+                            TileUpdate::Overlay(tile_type) => {
+                                tile.overlay = buf.get_u8();
+                                tile.overlay_type =
+                                    (tile_type - LOWEST_CONTINUED_TYPE) / ORIENTATION_COUNT;
+                                tile.overlay_orientation =
+                                    (tile_type - LOWEST_CONTINUED_TYPE) % ORIENTATION_COUNT;
+                            }
+                            TileUpdate::Attributes(tile_type) => {
+                                tile.attributes = tile_type - MINIMUM_OVERLAY_TYPE
+                            }
+                            TileUpdate::Underlay(tile_type) => {
+                                tile.underlay = tile_type - MINIMUM_ATTRIBUTE_TYPE
+                            }
+                        };
+                    }
+                    map_file.planes[plane].tiles[x][z] = tile;
+                }
+            }
+        }
+        Ok(map_file)
+    }
+
+    fn new() -> MapFile {
+        Self {
+            planes: vec![
+                MapPlane::default(),
+                MapPlane::default(),
+                MapPlane::default(),
+                MapPlane::default(),
+            ],
         }
     }
 
-    pub fn height(&self, x: usize, z: usize) -> u16 {
-        match self.get(x, z) {
-            Some(tile) => tile.height,
-            None => unreachable!("out of bounds"),
-        }
+    pub fn get_plane(&self, plane: usize) -> &MapPlane {
+        assert!(plane < MAP_PLANES, "plane out of bounds; {}", plane);
+        &self.planes[plane]
+    }
+
+    pub fn get(&self, plane: usize, x: usize, z: usize) -> &Tile {
+        self.get_plane(plane).get_tile(x, z)
+    }
+
+    pub fn is_walkable(&self, plane: usize, x: usize, z: usize) -> bool {
+        self.get(plane, x, z).is_walkable()
+    }
+
+    pub fn is_bridge(&self, plane: usize, x: usize, z: usize) -> bool {
+        self.get(plane, x, z).is_bridge()
+    }
+
+    pub fn height(&self, plane: usize, x: usize, z: usize) -> u16 {
+        self.get(plane, x, z).height
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Tile {
-    x: usize,
-    y: usize,
     height: u16,
     overlay: u8,
     overlay_type: u8,
@@ -161,10 +275,18 @@ pub struct Tile {
 }
 
 impl Tile {
-    fn new(x: usize, y: usize) -> Self {
+    pub fn is_walkable(self) -> bool {
+        self.attributes & 0x1 != 0x1
+    }
+
+    pub fn is_bridge(self) -> bool {
+        self.attributes & 0x2 == 0x2
+    }
+}
+
+impl Default for Tile {
+    fn default() -> Self {
         Self {
-            x,
-            y,
             height: DEFAULT_TILE_HEIGHT,
             overlay: 0,
             overlay_type: 0,
@@ -197,85 +319,4 @@ impl From<u8> for TileUpdate {
             Self::Underlay(b)
         }
     }
-}
-
-pub fn decode_map_file(
-    cache: &mut CacheFileSystem,
-    index: &MapIndex,
-) -> anyhow::Result<Vec<Plane>> {
-    let file = cache
-        .get_file(4, index.map_file_id as u64)
-        .expect("failed to read map_file_id");
-
-    let mut buf = crate::compression::decompress_gzip(file).expect("gzip decode failed");
-    let mut planes: Vec<Plane> = Vec::with_capacity(4);
-    for i in 0..MAP_PLANES {
-        let mut plane = Plane {
-            tiles: Vec::with_capacity(MAP_WIDTH),
-        };
-        for x in 0..MAP_WIDTH {
-            let mut tiles = Vec::with_capacity(MAP_WIDTH);
-            for z in 0..MAP_WIDTH {
-                let mut tile = Tile::new(x, z);
-                let mut read = LOWEST_CONTINUED_TYPE;
-                // TODO: Optimise. ASAP.
-                while read >= LOWEST_CONTINUED_TYPE {
-                    read = buf.get_u8();
-                    match TileUpdate::from(read) {
-                        TileUpdate::Height => {
-                            tile.height = if i == 0 {
-                                DEFAULT_TILE_HEIGHT
-                            } else {
-                                planes[i - 1].height(x, z) + PLANE_HEIGHT_DIFFERENCE
-                            }
-                        }
-                        TileUpdate::HeightFromLower => {
-                            let height = buf.get_u8();
-                            let below = if i == 0 {
-                                0
-                            } else {
-                                planes[i - 1].height(x, z)
-                            };
-
-                            tile.height = if height == 1 { 0 } else { height as u16 }
-                                * FROM_LOWER_MULTIPLICAND
-                                + below as u16;
-                        }
-                        TileUpdate::Overlay(tile_type) => {
-                            tile.overlay = buf.get_u8();
-                            tile.overlay_type =
-                                (tile_type - LOWEST_CONTINUED_TYPE) / ORIENTATION_COUNT;
-                            tile.overlay_orientation =
-                                (tile_type - LOWEST_CONTINUED_TYPE) % ORIENTATION_COUNT;
-                        }
-                        TileUpdate::Attributes(tile_type) => {
-                            tile.attributes = tile_type - MINIMUM_OVERLAY_TYPE
-                        }
-                        TileUpdate::Underlay(tile_type) => {
-                            tile.underlay = tile_type - MINIMUM_ATTRIBUTE_TYPE
-                        }
-                    };
-                }
-                tiles.push(tile);
-            }
-            assert_eq!(
-                MAP_WIDTH,
-                tiles.len(),
-                "expected {} tiles but decoded {}",
-                MAP_WIDTH,
-                plane.tiles.len()
-            );
-            plane.tiles.push(tiles);
-        }
-        assert_eq!(
-            MAP_WIDTH,
-            plane.tiles.len(),
-            "expected {} tiles but decoded {}",
-            MAP_WIDTH,
-            plane.tiles.len()
-        );
-        planes.push(plane);
-    }
-    assert!(planes.len() == 4);
-    Ok(planes)
 }
