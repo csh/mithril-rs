@@ -1,4 +1,2 @@
 restylers:
-- name: rustfmt
-  include:
-  - "**/*.rs"
+- rustfmt
