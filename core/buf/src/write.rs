@@ -71,7 +71,7 @@ pub trait GameBufMut: BufMut {
     ///
     /// ```rust
     /// use bytes::{BufMut, BytesMut};
-    /// use mithril_net::buf::GameBufMut;
+    /// use mithril_buf::GameBufMut;
     ///
     /// let mut buf = BytesMut::new();
     /// buf.put_bits(|mut writer| {
