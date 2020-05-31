@@ -1,4 +1,8 @@
 restylers:
-- rustfmt:
+- image: restyled/restyler-rustfmt
+  command:
+  - rustfmt
+  arguments: []
   include:
-    - "**/*.rs"
+  - "**/*.rs"
+  interpreters: []
