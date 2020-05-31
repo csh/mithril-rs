@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use quote::quote;
 use once_cell::sync::Lazy;
-use syn::{Ident, Type, Attribute, DataStruct, DeriveInput};
+use syn::{Ident, DeriveInput};
 
 use crate::endian::Endian;
 
@@ -38,7 +38,7 @@ struct FieldMetadata {
 
 fn generate_fn(prefix: &str, field_type: &Ident, field_metadata: &FieldMetadata) -> Ident {
     let mut fn_name = format!("{}_{}", prefix, field_type);
-    if let Some(_) = field_metadata.transform {
+    if field_metadata.transform.is_some() {
         fn_name.push('t');
     }
     if let Some(ref endian) = field_metadata.endian {
@@ -186,7 +186,7 @@ pub fn derive_packet(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     break;
                 }
 
-                match transform::parse_transform(field, &attr) {
+                match transform::parse_transform(&attr) {
                     Ok(transform) => {
                         field_metadata.transform = Some(transform);
                     }
