@@ -1,9 +1,9 @@
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::{Span, TokenStream};
 use std::collections::HashMap;
 
-use quote::quote;
 use once_cell::sync::Lazy;
-use syn::{Ident, Type, Attribute, DataStruct, DeriveInput};
+use quote::quote;
+use syn::{DeriveInput, Ident};
 
 use crate::endian::Endian;
 
@@ -38,7 +38,7 @@ struct FieldMetadata {
 
 fn generate_fn(prefix: &str, field_type: &Ident, field_metadata: &FieldMetadata) -> Ident {
     let mut fn_name = format!("{}_{}", prefix, field_type);
-    if let Some(_) = field_metadata.transform {
+    if field_metadata.transform.is_some() {
         fn_name.push('t');
     }
     if let Some(ref endian) = field_metadata.endian {
@@ -51,7 +51,11 @@ fn generate_fn(prefix: &str, field_type: &Ident, field_metadata: &FieldMetadata)
     Ident::new(&fn_name, Span::call_site())
 }
 
-fn generate_quote_read(field_name: &Ident, field_type: &Ident, field_metadata: &FieldMetadata) -> TokenStream {
+fn generate_quote_read(
+    field_name: &Ident,
+    field_type: &Ident,
+    field_metadata: &FieldMetadata,
+) -> TokenStream {
     if field_type == "bool" {
         if let Some(ref transform) = field_metadata.transform {
             quote! {
@@ -87,7 +91,11 @@ fn generate_quote_read(field_name: &Ident, field_type: &Ident, field_metadata: &
     }
 }
 
-fn generate_quote_write(field_name: &Ident, field_type: &Ident, field_metadata: &FieldMetadata) -> TokenStream {
+fn generate_quote_write(
+    field_name: &Ident,
+    field_type: &Ident,
+    field_metadata: &FieldMetadata,
+) -> TokenStream {
     if field_type == "bool" {
         if let Some(ref transform) = field_metadata.transform {
             quote! {
@@ -186,7 +194,7 @@ pub fn derive_packet(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     break;
                 }
 
-                match transform::parse_transform(field, &attr) {
+                match transform::parse_transform(&attr) {
                     Ok(transform) => {
                         field_metadata.transform = Some(transform);
                     }

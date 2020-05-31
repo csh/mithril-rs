@@ -1,8 +1,8 @@
 use std::convert::TryFrom;
 
-use proc_macro2::{TokenStream, Span, Punct, Spacing};
-use syn::{Attribute, Error, Field, Lit, LitStr, Meta, Type};
+use proc_macro2::{Punct, Spacing, Span, TokenStream};
 use quote::{ToTokens, TokenStreamExt};
+use syn::{Attribute, Error, Lit, LitStr, Meta};
 
 #[derive(Debug)]
 pub enum Transform {
@@ -42,14 +42,7 @@ impl TryFrom<LitStr> for Transform {
     }
 }
 
-pub fn parse_transform(field: &Field, attr: &Attribute) -> Result<Transform, TokenStream> {
-    let ty = match &field.ty {
-        Type::Path(path) => &path.path.segments,
-        _ => panic!("unexpected token"),
-    };
-
-    let ty_name = &ty.first().unwrap().ident;
-
+pub fn parse_transform(attr: &Attribute) -> Result<Transform, TokenStream> {
     let name_value = match attr.parse_meta() {
         Ok(Meta::NameValue(name_value)) => name_value,
         Ok(meta) => {
