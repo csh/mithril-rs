@@ -10,3 +10,6 @@ specs = { version = "0.16", features = ["specs-derive"] }
 parking_lot = "0.10"
 derivative = "2.1"
 flume = "0.7"
+pathfinding = "2.0"
+anyhow = "1.0"
+ahash = "0.3"

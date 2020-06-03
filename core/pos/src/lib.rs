@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use specs::{Component, VecStorage};
+use std::ops::Add;
 
 #[derive(Debug)]
 pub enum Direction {
@@ -14,11 +15,27 @@ pub enum Direction {
     SouthEast = 7
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Position {
     x: i16,
     y: i16,
     plane: u8
+}
+
+impl Add for Position {
+    type Output = Position;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Position::new_with_height(self.x + rhs.x, self.y + rhs.y, self.plane).expect("valid")
+    }
+}
+
+impl Add<(i16, i16)> for Position {
+    type Output = Position;
+
+    fn add(self, rhs: (i16, i16)) -> Self::Output {
+        Position::new_with_height(self.x + rhs.0, self.y + rhs.1, self.plane).expect("valid")
+    }
 }
 
 impl Position {
