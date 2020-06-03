@@ -1,7 +1,7 @@
+mod entity;
 mod network;
 mod player;
-mod entity;
 
+pub use entity::*;
 pub use network::*;
 pub use player::*;
-pub use entity::*;

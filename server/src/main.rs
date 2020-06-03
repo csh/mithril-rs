@@ -9,6 +9,8 @@ use tokio::net::TcpListener;
 use tokio::runtime;
 use tokio::runtime::Handle;
 use std::panic;
+use mithril_core::fs::CacheFileSystem;
+use types::CollisionDetector;
 
 mod systems;
 
@@ -44,11 +46,31 @@ pub async fn run(runtime: Handle) {
 
     log::info!("Listening on {}", bind_addr);
 
+    let cache_dir = if cfg!(debug_assertions) {
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../cache")
+    } else {
+        "./cache"
+    };
+    // TODO: Implement proper error handling in core/fs module
+    let mut cache = CacheFileSystem::open(cache_dir)
+        .unwrap_or_else(|_| {
+            log::error!("Unable to find cache data; please place files in {}", cache_dir);
+            std::process::exit(1);
+        });
+
     let mut world = World::new();
     let mut dispatcher = systems::build_dispatcher();
 
     let packets = Arc::new(packets::Packets::default());
     let network_manager = net::NetworkManager::start(listener, Arc::clone(&packets));
+    let collision_detector = CollisionDetector::new(&mut cache)
+        .unwrap_or_else(|why| {
+            log::error!("Mithril experienced an error whilst loading map data; {}", why);
+            std::process::exit(1);
+        });
+
+    world.insert(cache);
+    world.insert(collision_detector);
     world.insert(packets);
     world.insert(network_manager);
 

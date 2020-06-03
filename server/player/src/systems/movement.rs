@@ -1,5 +1,5 @@
 use mithril_core::pos::Position;
-use mithril_server_types::{Name, Network, PreviousPosition, Pathfinder};
+use mithril_server_types::{Name, Network, PreviousPosition, Pathfinder, CollisionDetector};
 use specs::prelude::*;
 use mithril_core::net::packets::{PlayerSynchronization, EntityMovement, NpcSynchronization, Walk};
 use mithril_server_packets::Packets;
@@ -128,17 +128,18 @@ impl<'a> System<'a> for EntityPathfinding {
     type SystemData = (
         Entities<'a>,
         ReadExpect<'a, Arc<Packets>>,
+        ReadExpect<'a, CollisionDetector>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Pathfinder>
     );
 
-    fn run(&mut self, (entities, packets, mut pos_storage, mut path_storage): Self::SystemData) {
+    fn run(&mut self, (entities, packets, detector, mut pos_storage, mut path_storage): Self::SystemData) {
         (&entities, &mut pos_storage, &mut path_storage).par_join()
             .for_each(|(entity, current, pathfinder)| {
                 let walk_packet = packets.received_from::<Walk>(entity, PacketType::Walk).last();
                 if let Some(walk_packet) = walk_packet {
                     pathfinder.set_running(walk_packet.running);
-                    pathfinder.walk_path(*current, walk_packet.path);
+                    pathfinder.walk_path(&detector, *current, walk_packet.path);
                 }
 
                 if let Some(next_step) = pathfinder.next_step() {
