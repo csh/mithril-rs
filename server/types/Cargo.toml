@@ -13,3 +13,6 @@ flume = "0.7"
 pathfinding = "2.0"
 anyhow = "1.0"
 ahash = "0.3"
+
+[dev-dependencies]
+ci_info = "*"

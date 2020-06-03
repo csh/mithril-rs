@@ -65,6 +65,10 @@ mod tests {
     pub fn test_collisions() {
         use pathfinding::prelude::{absdiff, astar, Grid};
 
+        if ci_info::is_ci() {
+            return;
+        }
+
         let mut cache = CacheFileSystem::open("../../cache").expect("cache");
         let detector = CollisionDetector::new(&mut cache).expect("detector");
 
