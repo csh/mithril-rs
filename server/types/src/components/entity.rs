@@ -2,6 +2,9 @@ use mithril_core::pos::Position;
 use specs::{Component, VecStorage};
 use std::collections::VecDeque;
 
+use crate::CollisionDetector;
+use pathfinding::prelude::{absdiff, astar};
+
 #[derive(Debug, Default)]
 pub struct PreviousPosition(pub Position);
 
@@ -18,7 +21,7 @@ impl Component for PreviousPosition {
 #[derive(Debug)]
 pub struct Pathfinder {
     points: VecDeque<Position>,
-    running: bool
+    running: bool,
 }
 
 impl Pathfinder {
@@ -30,23 +33,48 @@ impl Pathfinder {
         self.running = running
     }
 
-    pub fn walk_path(&mut self, from: Position, mut path: Vec<Position>) {
+    pub fn walk_path(&mut self, detector: &CollisionDetector, from: Position, path: Vec<Position>) {
         self.clear();
 
-        path.insert(0, from);
-        let chunks = path.chunks_exact(2);
-        for chunk in chunks.clone() {
-            self.calculate_path(chunk[0], chunk[1]);
+        let goal = match path.last() {
+            Some(goal) => *goal,
+            None => return,
+        };
+
+        let mut full_route = VecDeque::new();
+        let mut starting_point = from;
+        for point in path {
+            match astar(
+                &starting_point,
+                |&pos| {
+                    let mut successors = Vec::with_capacity(8);
+                    for y in -1..=1 {
+                        for x in -1..=1 {
+                            if x == 0 && y == 0 {
+                                continue;
+                            }
+                            let successor = pos + (x, y);
+                            if detector.is_traversable(successor) {
+                                successors.push((successor, 1));
+                            }
+                        }
+                    }
+                    println!("Found {} successors to {:?}", successors.len(), pos);
+                    successors.into_iter()
+                },
+                |&pos| absdiff(pos.get_x(), point.get_x()) + absdiff(pos.get_y(), point.get_y()),
+                |&pos| pos == point,
+            ) {
+                Some((route, _steps)) => {
+                    full_route.extend(route);
+                }
+                None => break,
+            }
+
+            starting_point = point;
         }
 
-        let remainder = chunks.remainder();
-        if remainder.is_empty() == false {
-            let previous = match self.points.back() {
-                Some(previous) => *previous,
-                None => from
-            };
-            self.calculate_path(previous, remainder[0]);
-        }
+        self.points.append(&mut full_route);
     }
 
     pub fn next_step(&mut self) -> Option<Position> {
@@ -57,41 +85,13 @@ impl Pathfinder {
         self.points.clear();
         self.running = false;
     }
-
-    fn calculate_path(&mut self, from: Position, to: Position) {
-        if from.get_plane() != to.get_plane() {
-            panic!("path could not be found; plane mismatch")
-        }
-
-        let mut delta_x = to.get_x() - from.get_x();
-        let mut delta_y = to.get_y() - from.get_y();
-        let max_steps = std::cmp::max(delta_x.abs(), delta_y.abs());
-        for _ in 0..max_steps {
-            match delta_x {
-                x if x < 0 => delta_x += 1,
-                x if x > 0 => delta_x -= 1,
-                _ => {}
-            }
-
-            match delta_y {
-                y if y < 0 => delta_y += 1,
-                y if y > 0 => delta_y -= 1,
-                _ => {}
-            }
-
-            self.points.push_back(Position::new(
-                to.get_x() - delta_x,
-                to.get_y() - delta_y,
-            ));
-        }
-    }
 }
 
 impl Default for Pathfinder {
     fn default() -> Self {
         Self {
             points: VecDeque::with_capacity(16),
-            running: false
+            running: false,
         }
     }
 }

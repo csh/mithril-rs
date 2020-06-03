@@ -10,18 +10,19 @@ use specs::{Component, VecStorage};
 pub struct Network {
     pub rx: Mutex<flume::Receiver<WorkerToServerMessage>>,
     pub tx: flume::Sender<ServerToWorkerMessage>,
-    pub ip: SocketAddr
+    pub ip: SocketAddr,
 }
 
 impl Network {
-    pub fn send<P>(&self, packet: P) where P: 'static + Packet {
+    pub fn send<P>(&self, packet: P)
+    where
+        P: 'static + Packet,
+    {
         self.send_boxed(Box::new(packet));
     }
 
     pub fn send_boxed(&self, packet: Box<dyn Packet>) {
-        let _ = self.tx.send(ServerToWorkerMessage::Dispatch {
-            packet
-        });
+        let _ = self.tx.send(ServerToWorkerMessage::Dispatch { packet });
     }
 }
 
@@ -48,7 +49,5 @@ pub enum ServerToWorkerMessage {
 
 #[derive(Debug)]
 pub enum WorkerToServerMessage {
-    Disconnect {
-        reason: String
-    },
+    Disconnect { reason: String },
 }
