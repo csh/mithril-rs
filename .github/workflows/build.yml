@@ -1,16 +1,21 @@
-name: Rust
+name: build
 on:
   push:
     branches: 
-      - develop
-  pull_request:
+    - develop
+    - master
+  pull_request: 
     branches: 
-      - master
-      - develop
+    - develop
+    - master
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: build targets
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ windows-latest, macos-latest, ubuntu-18.04 ]
     steps:
     - uses: actions/checkout@v2
     - name: Cache cargo registry
@@ -28,7 +33,5 @@ jobs:
       with:
         path: target
         key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-    - name: Build
-      run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test
