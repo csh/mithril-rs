@@ -3,7 +3,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use rand::{Rng, SeedableRng};
 use tokio_util::codec::{Decoder, Encoder};
 
-use crate::{Packet, PacketDirection, PacketId, PacketStage, PacketType, PacketLength};
+use crate::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 
 pub struct RunescapeCodec {
     encoding_rng: Option<rand_isaac::IsaacRng>,
@@ -82,7 +82,7 @@ impl Encoder<Box<dyn Packet>> for RunescapeCodec {
                         PacketLength::VariableShort => dst.put_u16(encoding_buf.len() as u16),
                         PacketLength::Fixed(len) => {
                             assert_eq!(encoding_buf.len(), len, "fixed length mismatch");
-                        },
+                        }
                     }
                 }
                 dst.put(encoding_buf);
@@ -130,11 +130,11 @@ impl Decoder for RunescapeCodec {
                     Some(PacketLength::VariableByte) => {
                         let len = src.get_u8();
                         src.split_to(len as usize)
-                    },
+                    }
                     Some(PacketLength::VariableShort) => {
                         let len = src.get_u16();
                         src.split_to(len as usize)
-                    },
+                    }
                     None => src.split_to(src.remaining()),
                 };
                 log::debug!("We received a {:?}; len = {}", packet_type, src.len());

@@ -84,7 +84,8 @@ pub trait GameBufMut: BufMut {
     /// });
     /// ```
     fn put_bits<B>(&mut self, write_fn: B)
-        where B: FnOnce(BitWriter) -> BitWriter
+    where
+        B: FnOnce(BitWriter) -> BitWriter,
     {
         let writer = write_fn(BitWriter::new());
         let written = (writer.index + 7) / 8;
