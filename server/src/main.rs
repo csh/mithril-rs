@@ -52,10 +52,9 @@ pub async fn run(runtime: Handle) {
         "./cache"
     };
     // TODO: Implement proper error handling in core/fs module
-    let mut cache = CacheFileSystem::open(cache_dir)
-        .unwrap_or_else(|_| {
-            log::error!("Unable to find cache data; please place files in {}", cache_dir);
-            std::process::exit(1);
+    let mut cache = CacheFileSystem::open(cache_dir).unwrap_or_else(|_| {
+                log::error!("Unable to find cache data; please place files in {}", cache_dir);
+                std::process::exit(1);
         });
 
     let mut world = World::new();
