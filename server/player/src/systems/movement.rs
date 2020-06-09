@@ -1,10 +1,10 @@
-use mithril_core::pos::Position;
-use mithril_server_types::{Name, Network, PreviousPosition, Pathfinder, CollisionDetector};
-use specs::prelude::*;
-use mithril_core::net::packets::{PlayerSynchronization, EntityMovement, NpcSynchronization, Walk};
-use mithril_server_packets::Packets;
-use std::sync::Arc;
+use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk};
 use mithril_core::net::PacketType;
+use mithril_core::pos::Position;
+use mithril_server_packets::Packets;
+use mithril_server_types::{CollisionDetector, Name, Network, Pathfinder, PreviousPosition};
+use specs::prelude::*;
+use std::sync::Arc;
 
 #[derive(SystemData)]
 pub struct PlayerSyncStorage<'a> {
@@ -17,15 +17,9 @@ pub struct PlayerSyncStorage<'a> {
 pub struct PlayerSync;
 
 impl<'a> System<'a> for PlayerSync {
-    type SystemData = (
-        Entities<'a>,
-        PlayerSyncStorage<'a>
-    );
+    type SystemData = (Entities<'a>, PlayerSyncStorage<'a>);
 
-    fn run(
-        &mut self,
-        (entities, sync): Self::SystemData,
-    ) {
+    fn run(&mut self, (entities, sync): Self::SystemData) {
         (
             &entities,
             &sync.names,
@@ -57,14 +51,12 @@ impl<'a> System<'a> for PlayerSync {
                         // Are we within region width in tiles * viewing distance
                         !previous.within_distance(*current_pos, 8 * 15)
                     }
-                    None => true
+                    None => true,
                 };
 
                 let has_moved = match previous {
-                    Some(previous) => {
-                        !previous.eq(current_pos)
-                    }
-                    None => false
+                    Some(previous) => !previous.eq(current_pos),
+                    None => false,
                 };
 
                 if update_region {
@@ -76,19 +68,19 @@ impl<'a> System<'a> for PlayerSync {
                         player_update: Some(EntityMovement::Teleport {
                             destination: *current_pos,
                             current: *current_pos,
-                            changed_region: update_region
-                        })
+                            changed_region: update_region,
+                        }),
                     });
                 } else if has_moved {
                     let direction = previous.unwrap().0.direction_between(*current_pos);
                     network.send(PlayerSynchronization {
                         player_update: Some(EntityMovement::Move {
-                            direction: direction as i32
-                        })
+                            direction: direction as i32,
+                        }),
                     });
                 } else {
                     network.send(PlayerSynchronization {
-                        player_update: None
+                        player_update: None,
                     });
                 }
 
@@ -104,7 +96,7 @@ impl<'a> System<'a> for ResetPreviousPosition {
         Entities<'a>,
         ReadStorage<'a, Position>,
         WriteStorage<'a, PreviousPosition>,
-        Read<'a, LazyUpdate>
+        Read<'a, LazyUpdate>,
     );
 
     fn run(&mut self, (entities, pos_storage, mut prev_storage, lazy): Self::SystemData) {
@@ -117,7 +109,7 @@ impl<'a> System<'a> for ResetPreviousPosition {
         (&entities, &pos_storage, !&prev_storage)
             .par_join()
             .for_each(|(entity, current, _)| {
-              lazy.insert(entity, PreviousPosition(*current));
+                lazy.insert(entity, PreviousPosition(*current));
             });
     }
 }
@@ -130,13 +122,19 @@ impl<'a> System<'a> for EntityPathfinding {
         ReadExpect<'a, Arc<Packets>>,
         ReadExpect<'a, CollisionDetector>,
         WriteStorage<'a, Position>,
-        WriteStorage<'a, Pathfinder>
+        WriteStorage<'a, Pathfinder>,
     );
 
-    fn run(&mut self, (entities, packets, detector, mut pos_storage, mut path_storage): Self::SystemData) {
-        (&entities, &mut pos_storage, &mut path_storage).par_join()
+    fn run(
+        &mut self,
+        (entities, packets, detector, mut pos_storage, mut path_storage): Self::SystemData,
+    ) {
+        (&entities, &mut pos_storage, &mut path_storage)
+            .par_join()
             .for_each(|(entity, current, pathfinder)| {
-                let walk_packet = packets.received_from::<Walk>(entity, PacketType::Walk).last();
+                let walk_packet = packets
+                    .received_from::<Walk>(entity, PacketType::Walk)
+                    .last();
                 if let Some(walk_packet) = walk_packet {
                     pathfinder.set_running(walk_packet.running);
                     pathfinder.walk_path(&detector, *current, walk_packet.path);
