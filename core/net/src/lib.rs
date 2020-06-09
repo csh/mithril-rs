@@ -1,16 +1,16 @@
 #[macro_use]
 extern crate mithril_codegen;
 
-#[cfg(feature = "jaggrab")]
-pub use jaggrab::{JaggrabCodec, JaggrabFile, JaggrabError};
 pub use codec::RunescapeCodec;
+#[cfg(feature = "jaggrab")]
+pub use jaggrab::{JaggrabCodec, JaggrabError, JaggrabFile};
 pub use packet::{
     cast_packet, Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType,
 };
 
+mod codec;
 #[cfg(feature = "jaggrab")]
 mod jaggrab;
-mod codec;
 mod packet;
 
 pub mod packets;

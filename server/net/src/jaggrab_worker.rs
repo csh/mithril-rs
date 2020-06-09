@@ -47,9 +47,7 @@ pub fn serve_jaggrab(cache: Arc<Mutex<CacheFileSystem>>) {
 async fn serve_request(stream: TcpStream, addr: SocketAddr, cache: Arc<Mutex<CacheFileSystem>>) {
     let mut framed = Framed::new(stream, JaggrabCodec);
     let file = match framed.next().await.expect("valid") {
-        Ok(file) => {
-            file
-        }
+        Ok(file) => file,
         Err(cause) => {
             log::error!("JAGGRAB request for '{}' failed; {}", addr, cause);
             return;
@@ -57,16 +55,17 @@ async fn serve_request(stream: TcpStream, addr: SocketAddr, cache: Arc<Mutex<Cac
     };
 
     log::debug!("{} requested {:?} using JAGGRAB", addr, file);
-    let file = {
-        cache.lock().get_file(0, file as _)
-    };
+    let file = { cache.lock().get_file(0, file as _) };
 
     match file {
         Ok(data) => {
             let _ = framed.send(data).await;
         }
         Err(cause) => {
-            log::error!("JAGGRAB encountered an error whilst reading the cache; {}", cause);
+            log::error!(
+                "JAGGRAB encountered an error whilst reading the cache; {}",
+                cause
+            );
         }
     }
 }
