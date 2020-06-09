@@ -7,6 +7,7 @@ use mithril_core::fs::CacheFileSystem;
 use specs::prelude::*;
 use std::panic;
 use std::sync::Arc;
+use parking_lot::Mutex;
 use tokio::net::TcpListener;
 use tokio::runtime;
 use tokio::runtime::Handle;
@@ -60,18 +61,21 @@ pub async fn run(runtime: Handle) {
         std::process::exit(1);
     });
 
+    let collision_detector = CollisionDetector::new(&mut cache)
+        .unwrap_or_else(|why| {
+            log::error!("Mithril experienced an error whilst loading map data; {}", why);
+            std::process::exit(1);
+        });
+
     let mut world = World::new();
     let mut dispatcher = systems::build_dispatcher();
 
     let packets = Arc::new(packets::Packets::default());
     let network_manager = net::NetworkManager::start(listener, Arc::clone(&packets));
-    let collision_detector = CollisionDetector::new(&mut cache).unwrap_or_else(|why| {
-        log::error!(
-            "Mithril experienced an error whilst loading map data; {}",
-            why
-        );
-        std::process::exit(1);
-    });
+
+    // TODO: Can this be made any cleaner?
+    let cache = Arc::new(Mutex::new(cache));
+    net::serve_jaggrab(Arc::clone(&cache));
 
     world.insert(cache);
     world.insert(collision_detector);

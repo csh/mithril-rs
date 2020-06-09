@@ -9,7 +9,10 @@ use specs::Entity;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
+mod jaggrab_worker;
 mod worker;
+
+pub use jaggrab_worker::serve_jaggrab;
 
 #[derive(Debug)]
 pub enum ListenerToServerMessage {
