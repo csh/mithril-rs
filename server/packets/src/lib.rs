@@ -1,8 +1,8 @@
 use std::iter;
 
 use ahash::AHashMap;
-use specs::Entity;
 use parking_lot::{Mutex, RwLock};
+use specs::Entity;
 
 use mithril_core::net::{cast_packet, Packet, PacketType};
 use smallvec::SmallVec;
@@ -23,13 +23,12 @@ impl Packets {
         PacketType::iter().for_each(|packet_type| {
             buffer.insert(*packet_type, PacketsInner::default());
         });
-        Self {
-            buffer
-        }
+        Self { buffer }
     }
 
     pub fn push(&self, player: Entity, packet: Box<dyn Packet>) {
-        self.buffer.get(&packet.get_type())
+        self.buffer
+            .get(&packet.get_type())
             .and_then(|inner| Some(inner.push(player, packet)));
     }
 
@@ -41,9 +40,11 @@ impl Packets {
     where
         T: Packet + 'static,
     {
-        self.buffer.get(&packet_type)
+        self.buffer
+            .get(&packet_type)
             .map(|inner| {
-                let packets = inner.received_from(player)
+                let packets = inner
+                    .received_from(player)
                     .map(|packet| cast_packet(packet));
                 Either::Left(packets)
             })
@@ -83,14 +84,19 @@ impl PacketsInner {
             queued.lock().push(packet);
         } else {
             drop(guard);
-            self.inner.write().insert(player, Mutex::new(iter::once(packet).collect()));
+            self.inner
+                .write()
+                .insert(player, Mutex::new(iter::once(packet).collect()));
         }
     }
 
     fn received_from(&self, player: Entity) -> impl Iterator<Item = Box<dyn Packet>> {
         let guard = self.inner.read();
         if let Some(queued) = guard.get(&player) {
-            let vec = queued.lock().drain(..).collect::<SmallVec<[Box<dyn Packet>; 4]>>();
+            let vec = queued
+                .lock()
+                .drain(..)
+                .collect::<SmallVec<[Box<dyn Packet>; 4]>>();
             Either::Left(vec.into_iter())
         } else {
             Either::Right(std::iter::empty())

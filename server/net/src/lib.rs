@@ -4,8 +4,8 @@ use mithril_server_packets::Packets;
 use mithril_server_types::{ServerToWorkerMessage, WorkerToServerMessage};
 
 use derivative::Derivative;
-use specs::Entity;
 use parking_lot::Mutex;
+use specs::Entity;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 

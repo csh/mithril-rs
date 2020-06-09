@@ -1,6 +1,6 @@
-use mithril_pos::Position;
 use super::prelude::*;
 use crate::PacketLength;
+use mithril_pos::Position;
 
 #[derive(Debug, Default, Packet)]
 pub struct KeepAlive;
@@ -338,7 +338,7 @@ impl Packet for Walk {
         let length = match self.packet_type {
             PacketType::Walk => src.remaining(),
             PacketType::WalkWithAnticheat => src.remaining() - 14,
-            _ => unreachable!("packet type should always be Walk or WalkWithAnticheat")
+            _ => unreachable!("packet type should always be Walk or WalkWithAnticheat"),
         };
         let steps = (length - 5) / 2;
         let mut path = Vec::with_capacity(steps + 1);
@@ -374,7 +374,7 @@ pub struct EnterAmount;
 
 #[derive(Debug, Packet)]
 pub struct DisplayCrossbones {
-    pub shown: bool
+    pub shown: bool,
 }
 
 #[derive(Debug, Packet)]
@@ -405,13 +405,13 @@ pub struct SetPlayerAction {
     pub slot: u8,
     #[transform = "add"]
     pub is_primary_action: bool,
-    pub action: String
+    pub action: String,
 }
 
 #[derive(Debug, Packet)]
 pub struct DisplayTabInterface {
     #[transform = "negate"]
-    pub tab_id: u8
+    pub tab_id: u8,
 }
 
 #[derive(Debug, Packet)]
@@ -419,14 +419,14 @@ pub struct Logout;
 
 #[derive(Debug, Packet)]
 pub struct UpdateRunEnergy {
-    pub energy: u8
+    pub energy: u8,
 }
 
 #[derive(Debug, Packet)]
 pub struct SetWidgetText {
     pub message: String,
     #[transform = "add"]
-    pub widget_id: u16
+    pub widget_id: u16,
 }
 
 #[derive(Debug, Packet)]
@@ -439,20 +439,20 @@ pub struct UpdateSkill {
 #[derive(Debug, Packet)]
 pub struct OpenDialogueInterface {
     #[endian = "little"]
-    pub interface_id: u16
+    pub interface_id: u16,
 }
 
 #[derive(Debug, Packet)]
 pub struct SetWidgetVisibility {
     pub is_visible: bool,
     #[transform = "add"]
-    pub widget_id: u16
+    pub widget_id: u16,
 }
 
 #[derive(Debug, Packet)]
 pub struct SetWidgetPlayerModel {
     #[endian = "little"]
-    pub interface_id: u16
+    pub interface_id: u16,
 }
 
 #[derive(Debug, Packet)]
@@ -466,7 +466,7 @@ pub struct CloseInterface;
 
 #[derive(Debug, Packet)]
 pub struct UpdateWeight {
-    pub weight: u16
+    pub weight: u16,
 }
 
 #[derive(Debug, Packet)]
@@ -474,7 +474,7 @@ pub struct SetWidgetItemModel {
     #[endian = "little"]
     pub interface_id: u16,
     pub zoom: u16,
-    pub model_id: u16
+    pub model_id: u16,
 }
 
 #[derive(Debug, Packet)]
@@ -517,7 +517,7 @@ impl Packet for Config {
         }
         Ok(())
     }
-    
+
     fn get_type(&self) -> PacketType {
         match self {
             Config::Byte(_, _) => PacketType::ConfigByte,
@@ -527,7 +527,7 @@ impl Packet for Config {
 }
 
 pub struct RegionChange {
-    pub position: Position
+    pub position: Position,
 }
 
 impl Packet for RegionChange {
@@ -546,7 +546,7 @@ impl Packet for RegionChange {
 
 pub struct ClearRegion {
     pub player: Position,
-    pub region: Position
+    pub region: Position,
 }
 
 impl Packet for ClearRegion {
@@ -570,8 +570,8 @@ pub enum EntityMovement {
         changed_region: bool,
     },
     Move {
-        direction: i32
-    }
+        direction: i32,
+    },
 }
 
 #[derive(Debug)]
@@ -582,7 +582,11 @@ pub struct PlayerSynchronization {
 impl Packet for PlayerSynchronization {
     fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
         match self.player_update {
-            Some(EntityMovement::Teleport { destination, current, changed_region }) => {
+            Some(EntityMovement::Teleport {
+                destination,
+                current,
+                changed_region,
+            }) => {
                 src.put_bits(|mut writer| {
                     writer.put_bits(1, 1);
                     writer.put_bits(2, 3);
