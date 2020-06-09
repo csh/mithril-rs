@@ -1,5 +1,5 @@
-use std::fmt::Debug;
 use specs::{Component, VecStorage};
+use std::fmt::Debug;
 use std::ops::Add;
 
 #[derive(Debug)]
@@ -12,14 +12,14 @@ pub enum Direction {
     East = 4,
     SouthWest = 5,
     South = 6,
-    SouthEast = 7
+    SouthEast = 7,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Position {
     x: i16,
     y: i16,
-    plane: u8
+    plane: u8,
 }
 
 impl Add for Position {
@@ -45,11 +45,7 @@ impl Position {
 
     pub fn new_with_height(x: i16, y: i16, plane: u8) -> anyhow::Result<Self> {
         anyhow::ensure!(plane < 4, "plane out of bounds");
-        Ok(Self {
-            x,
-            y,
-            plane
-        })
+        Ok(Self { x, y, plane })
     }
 
     pub fn get_x(&self) -> i16 {
@@ -90,31 +86,31 @@ impl Position {
 
     pub fn direction_between(&self, other: Self) -> Direction {
         if *self == other {
-            return Direction::None
+            return Direction::None;
         }
 
         let delta_x = (other.x - self.x).signum();
         let delta_y = (other.y - self.y).signum();
         match delta_y {
             1 => match delta_x {
-                1   => Direction::NorthEast,
-                0   => Direction::North,
-                -1  => Direction::NorthWest,
-                _ => unreachable!()
-            }
+                1 => Direction::NorthEast,
+                0 => Direction::North,
+                -1 => Direction::NorthWest,
+                _ => unreachable!(),
+            },
             0 => match delta_x {
-                1   => Direction::East,
-                0   => Direction::None,
-                -1  => Direction::West,
-                _ => unreachable!()
-            }
+                1 => Direction::East,
+                0 => Direction::None,
+                -1 => Direction::West,
+                _ => unreachable!(),
+            },
             -1 => match delta_x {
-                1   => Direction::SouthEast,
-                0   => Direction::South,
-                -1  => Direction::SouthWest,
-                _ => unreachable!()
-            }
-            _ => unreachable!()
+                1 => Direction::SouthEast,
+                0 => Direction::South,
+                -1 => Direction::SouthWest,
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
         }
     }
 }

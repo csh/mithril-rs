@@ -154,7 +154,7 @@ pub enum PacketType {
 pub enum PacketLength {
     Fixed(usize),
     VariableByte,
-    VariableShort
+    VariableShort,
 }
 
 static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {

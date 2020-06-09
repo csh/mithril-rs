@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::prelude::*;
-use specs::Entity;
 use parking_lot::Mutex;
+use specs::Entity;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -70,9 +70,7 @@ pub async fn run_worker(
             .listener_tx
             .send(ListenerToServerMessage::DestroyEntity(worker.entity));
     } else {
-        let _ = worker.tx.send(WorkerToServerMessage::Disconnect {
-            reason
-        });
+        let _ = worker.tx.send(WorkerToServerMessage::Disconnect { reason });
     }
 }
 

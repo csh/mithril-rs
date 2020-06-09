@@ -5,7 +5,7 @@ pub use game::*;
 pub use handshake::*;
 
 use crate::packet::PacketFactory;
-use crate::{PacketType, PacketLength};
+use crate::{PacketLength, PacketType};
 
 mod game;
 mod handshake;
@@ -13,8 +13,8 @@ mod handshake;
 mod prelude {
     pub use bytes::{Buf, BufMut, BytesMut};
 
-    pub use mithril_buf::*;
     pub use crate::{Packet, PacketType};
+    pub use mithril_buf::*;
 }
 
 /// Register a PacketFactory that uses Default to construct the packet.
@@ -123,36 +123,40 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
 
     factories.insert(
         PacketType::Walk,
-        PacketFactory::new(|| Box::new(Walk {
-            packet_type: PacketType::Walk,
-            path: Vec::default(),
-            running: false
-        }))
+        PacketFactory::new(|| {
+            Box::new(Walk {
+                packet_type: PacketType::Walk,
+                path: Vec::default(),
+                running: false,
+            })
+        }),
     );
     factories.insert(
         PacketType::WalkWithAnticheat,
-        PacketFactory::new(|| Box::new(Walk {
-            packet_type: PacketType::WalkWithAnticheat,
-            path: Vec::default(),
-            running: false
-        }))
+        PacketFactory::new(|| {
+            Box::new(Walk {
+                packet_type: PacketType::WalkWithAnticheat,
+                path: Vec::default(),
+                running: false,
+            })
+        }),
     );
 
     factories.insert(
         PacketType::SpamPacket(PacketLength::VariableByte),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::VariableByte)))
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::VariableByte))),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(0)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(0))))
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(0)))),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(1)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(1))))
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(1)))),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(4)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(4))))
+        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(4)))),
     );
 
     factories
