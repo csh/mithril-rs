@@ -5,4 +5,3 @@ pub use jaggrab_codec::JaggrabCodec;
 mod errors;
 mod file;
 mod jaggrab_codec;
-
