@@ -1,0 +1,4 @@
+# We use rustfmt for consistent code which will be checked during the CI build
+# Please `cargo fmt` before committing or your PR will report failures.
+
+edition = "2018"
