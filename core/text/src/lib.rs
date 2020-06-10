@@ -28,7 +28,7 @@ pub fn encode_base37<T: AsRef<str>>(input: T) -> u64 {
 }
 
 pub fn decode_base37(mut input: u64) -> anyhow::Result<String> {
-    if input == 0 || input >= 0x5B5B57F8A98A5DD1 || input % 37 == 0 {
+    if input == 0 || input >= 0x5B5B_57F8_A98A_5DD1 || input % 37 == 0 {
         return Err(anyhow::anyhow!("invalid name"));
     }
 
@@ -48,7 +48,7 @@ pub fn decompress(input: &[u8], len: usize) -> String {
     let mut position: usize = 0;
     let mut carry = -1i32;
     for index in 0..len * 2 {
-        let table_pos = input[index / 2] >> 4 - 4 * (index % 2) as u8 & 0xF;
+        let table_pos = (input[index / 2] >> (4 - 4 * (index % 2) as u8)) & 0xF;
         if carry == -1 {
             if table_pos < 13 {
                 out.insert(position, FREQUENCY_ORDERED_CHARS[table_pos as usize]);
@@ -80,13 +80,13 @@ mod tests {
 
     #[test]
     pub fn test_encode_base37() {
-        assert_eq!(encode_base37("smrkn"), 36292611);
+        assert_eq!(encode_base37("smrkn"), 36_292_611);
         assert_eq!(encode_base37("csh"), 4818);
     }
 
     #[test]
     pub fn test_decode_base37() {
-        assert_eq!(decode_base37(36292611).unwrap(), String::from("smrkn"));
+        assert_eq!(decode_base37(36_292_611).unwrap(), String::from("smrkn"));
         assert_eq!(decode_base37(4818).unwrap(), String::from("csh"));
     }
 }

@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk};
 use mithril_core::net::PacketType;
 use mithril_core::pos::Position;
@@ -19,6 +20,7 @@ pub struct PlayerSync;
 impl<'a> System<'a> for PlayerSync {
     type SystemData = (Entities<'a>, PlayerSyncStorage<'a>);
 
+    #[allow(clippy::type_complexity)]
     fn run(&mut self, (entities, sync): Self::SystemData) {
         (
             &entities,

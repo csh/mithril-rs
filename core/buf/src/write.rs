@@ -7,8 +7,8 @@ use super::Transform;
 
 static BIT_MASKS: Lazy<[u32; 32]> = Lazy::new(|| {
     let mut masks = [0; 32];
-    for i in 0..32 {
-        masks[i] = (1 << i as u32) - 1;
+    for (i, mask) in masks.iter_mut().enumerate() {
+        *mask = (1 << i as u32) - 1;
     }
     masks
 });
@@ -42,7 +42,7 @@ impl BitWriter {
         while count > bit_offset {
             self.buffer = self.inner[read_index] as u32;
             self.buffer &= BIT_MASKS[bit_offset as usize].wrapping_neg();
-            self.buffer |= value >> count - bit_offset & BIT_MASKS[bit_offset as usize];
+            self.buffer |= value >> (count - bit_offset) & BIT_MASKS[bit_offset as usize];
             self.inner[read_index] = self.buffer as u8;
             read_index += 1;
             count -= bit_offset;
@@ -51,11 +51,11 @@ impl BitWriter {
 
         self.buffer = self.inner[read_index] as u32;
         if count == bit_offset {
-            self.buffer &= BIT_MASKS[bit_offset as usize].wrapping_neg();
+            self.buffer &= !BIT_MASKS[bit_offset as usize];
             self.buffer |= value & BIT_MASKS[bit_offset as usize];
         } else {
-            self.buffer &= (BIT_MASKS[count as usize] << bit_offset - count).wrapping_neg();
-            self.buffer |= (value & BIT_MASKS[count as usize]) << bit_offset - count;
+            self.buffer &= !(BIT_MASKS[count as usize] << (bit_offset - count));
+            self.buffer |= (value & BIT_MASKS[count as usize]) << (bit_offset - count);
         }
         self.inner[read_index] = self.buffer as u8;
     }
@@ -195,7 +195,7 @@ mod tests {
     #[test]
     pub fn test_put_u32_me() {
         let mut buf = BytesMut::with_capacity(6);
-        buf.put_u32_me(12345678);
+        buf.put_u32_me(12_345_678);
         assert_eq!(buf[0], 97);
         assert_eq!(buf[1], 78);
         assert_eq!(buf[2], 0);
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     pub fn test_put_u32_inv_me() {
         let mut buf = BytesMut::with_capacity(6);
-        buf.put_u32_inv_me(12345678);
+        buf.put_u32_inv_me(12_345_678);
         assert_eq!(buf[0], 188);
         assert_eq!(buf[1], 0);
         assert_eq!(buf[2], 78);

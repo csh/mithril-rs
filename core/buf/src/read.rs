@@ -66,7 +66,7 @@ impl<B: Buf> GameBuf for B {}
 
 #[cfg(test)]
 mod tests {
-    use bytes::{Bytes, BytesMut};
+    use bytes::Bytes;
 
     use super::*;
 

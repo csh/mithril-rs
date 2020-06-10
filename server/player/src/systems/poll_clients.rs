@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use mithril_core::net::packets::{IdAssignment, SwitchTabInterface};
 use mithril_core::pos::Position;
 use mithril_server_net::{ListenerToServerMessage, NetworkManager, ServerToListenerMessage};
@@ -77,10 +78,10 @@ impl<'a> System<'a> for PollNewClients {
                         147,
                         962,
                     ];
-                    for i in 0..tabs.len() {
+                    for (tab_id, interface_id) in tabs.iter().enumerate() {
                         network.send(SwitchTabInterface {
-                            interface_id: tabs[i],
-                            tab_id: i as u8,
+                            interface_id: *interface_id,
+                            tab_id: tab_id as u8,
                         });
                     }
 

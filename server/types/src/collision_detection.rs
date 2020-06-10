@@ -20,8 +20,6 @@ impl CollisionDetector {
                 grid.add_borders();
                 grid.fill();
 
-                let pos = Position::default();
-                let (local_x, local_z) = pos.get_relative(pos);
                 for x in 0..64 {
                     for z in 0..64 {
                         if !map_file.is_walkable(plane, x, z) || map_file.is_bridge(plane, x, z) {
@@ -48,7 +46,7 @@ impl CollisionDetector {
         match self.impassable.get(&(pos.get_plane(), search_x, search_y)) {
             Some(grid) => {
                 let (local_x, local_y) = pos.get_relative(pos);
-                return grid.has_vertex(&(local_x as _, local_y as _));
+                grid.has_vertex(&(local_x as _, local_y as _))
             }
             None => false,
         }
@@ -63,7 +61,7 @@ mod tests {
 
     #[test]
     pub fn test_collisions() {
-        use pathfinding::prelude::{absdiff, astar, Grid};
+        use pathfinding::prelude::{absdiff, astar};
 
         if ci_info::is_ci() {
             return;

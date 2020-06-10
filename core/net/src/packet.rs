@@ -658,11 +658,11 @@ impl PacketFactory {
 }
 
 pub trait Packet: Send + Sync + IntoAny {
-    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
+    fn try_read(&mut self, _src: &mut BytesMut) -> anyhow::Result<()> {
         unimplemented!()
     }
 
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
+    fn try_write(&self, _dst: &mut BytesMut) -> anyhow::Result<()> {
         unimplemented!()
     }
 

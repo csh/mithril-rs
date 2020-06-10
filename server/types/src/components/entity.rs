@@ -34,12 +34,11 @@ impl Pathfinder {
     }
 
     pub fn walk_path(&mut self, detector: &CollisionDetector, from: Position, path: Vec<Position>) {
+        if path.is_empty() {
+            return;
+        }
+        
         self.clear();
-
-        let goal = match path.last() {
-            Some(goal) => *goal,
-            None => return,
-        };
 
         let mut full_route = VecDeque::new();
         let mut starting_point = from;

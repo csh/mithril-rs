@@ -95,7 +95,7 @@ pub async fn run(runtime: Handle) {
 
     let panic = panic::catch_unwind(panic::AssertUnwindSafe(|| run_loop(&mut state)));
 
-    if let Err(_) = panic {
+    if panic.is_err() {
         log::error!("Mithril has crashed!");
     }
 
@@ -106,14 +106,14 @@ pub async fn run(runtime: Handle) {
 }
 
 fn run_loop(state: &mut GameState) {
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(6 as f64);
+    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(6_f64);
     loop {
         if state.shutdown_rx.try_recv().is_ok() {
             return;
         }
 
         loop_helper.loop_start();
-        state.dispatcher.dispatch(&mut state.world);
+        state.dispatcher.dispatch(&state.world);
         state.world.maintain();
         loop_helper.loop_sleep();
     }

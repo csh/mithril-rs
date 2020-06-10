@@ -27,9 +27,9 @@ impl Packets {
     }
 
     pub fn push(&self, player: Entity, packet: Box<dyn Packet>) {
-        self.buffer
-            .get(&packet.get_type())
-            .and_then(|inner| Some(inner.push(player, packet)));
+        if let Some(inner) = self.buffer.get(&packet.get_type()) {
+            inner.push(player, packet)
+        }
     }
 
     pub fn received_from<T>(
@@ -48,7 +48,7 @@ impl Packets {
                     .map(|packet| cast_packet(packet));
                 Either::Left(packets)
             })
-            .unwrap_or(Either::Right(iter::empty()))
+            .unwrap_or_else(|| Either::Right(iter::empty()))
     }
 }
 
@@ -72,9 +72,12 @@ where
     }
 }
 
+type PacketsVec = SmallVec<[Box<dyn Packet>; 4]>;
+type PacketsMap = AHashMap<Entity, Mutex<PacketsVec>>;
+
 #[derive(Default)]
 struct PacketsInner {
-    inner: RwLock<AHashMap<Entity, Mutex<SmallVec<[Box<dyn Packet>; 4]>>>>,
+    inner: RwLock<PacketsMap>,
 }
 
 impl PacketsInner {

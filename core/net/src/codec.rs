@@ -11,6 +11,7 @@ pub struct RunescapeCodec {
     stage: PacketStage,
 }
 
+#[allow(clippy::new_without_default)]
 impl RunescapeCodec {
     pub fn new() -> Self {
         RunescapeCodec {
@@ -97,7 +98,7 @@ impl Decoder for RunescapeCodec {
     type Error = anyhow::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.len() < 1 {
+        if src.is_empty() {
             return Ok(None);
         }
 

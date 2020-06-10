@@ -33,7 +33,7 @@ impl Decoder for JaggrabCodec {
         }
 
         let file_requested = match read_jaggrab_line(src) {
-            Ok((remaining, file_bytes)) => String::from_utf8(file_bytes),
+            Ok((_remaining, file_bytes)) => String::from_utf8(file_bytes),
             Err(_parse_error) => return Err(JaggrabError::InvalidRequest),
         };
 
@@ -42,7 +42,7 @@ impl Decoder for JaggrabCodec {
             Err(error) => return Err(JaggrabError::InvalidFileName(error)),
         };
 
-        jaggrab_file.map(|f| Some(f))
+        jaggrab_file.map(Some)
     }
 }
 
@@ -53,7 +53,7 @@ fn read_jaggrab_line(input: &[u8]) -> nom::IResult<&[u8], Vec<u8>> {
     let new_lines = tag("\n\n");
     let file_name = preceded(protocol, file_name);
 
-    let (remaining, (file_name, expected_crc, _line_breaks)) =
+    let (remaining, (file_name, _expected_crc, _line_breaks)) =
         tuple((file_name, expected_crc, new_lines))(input)?;
     Ok((remaining, file_name.to_vec()))
 }
@@ -69,7 +69,7 @@ mod tests {
     pub fn test_valid_request() {
         let (input, file_name) =
             read_jaggrab_line(b"JAGGRAB /title0\n\n").expect("decode_jaggrab_line");
-        assert!(input.len() == 0, "request should be read fully");
+        assert!(input.is_empty(), "request should be read fully");
         match String::from_utf8(file_name) {
             Ok(file_name) => {
                 assert_eq!(

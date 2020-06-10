@@ -258,7 +258,7 @@ pub struct SpamPacket(pub PacketLength);
 
 impl Packet for SpamPacket {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        if src.len() > 0 {
+        if !src.is_empty() {
             src.advance(src.len());
         }
         Ok(())
