@@ -4,7 +4,7 @@ use bytes::Buf;
 
 use mithril_buf::GameBuf;
 
-use crate::CacheFileSystem;
+use crate::{ArchiveError, CacheError, CacheFileSystem};
 
 pub enum EntityAnimation {
     Idle,
@@ -48,17 +48,17 @@ impl Default for EntityDefinition {
 }
 
 impl EntityDefinition {
-    pub fn load(cache: &mut CacheFileSystem) -> anyhow::Result<Vec<Self>> {
+    pub fn load(cache: &mut CacheFileSystem) -> crate::Result<Vec<Self>> {
         let archive = cache.get_archive(0, 2)?;
         let mut index = archive
             .get_entry("npc.idx")
             .map(|entry| Cursor::new(entry.contents()))
-            .expect("Failed to read obj.idx");
+            .ok_or(ArchiveError::EntryNotFound("npc.idx"))?;
 
         let mut data = archive
             .get_entry("npc.dat")
             .map(|entry| Cursor::new(entry.contents()))
-            .expect("Failed to read obj.dat");
+            .ok_or(ArchiveError::EntryNotFound("npc.dat"))?;
 
         let count = index.get_u16() as usize;
         let mut offsets = vec![0; count];
@@ -72,7 +72,7 @@ impl EntityDefinition {
         let mut definitions: Vec<Self> = Vec::with_capacity(count);
         for (id, offset) in offsets.iter().enumerate() {
             data.seek(SeekFrom::Start(*offset))?;
-            let definition = decode_definition(id as u16, &mut data);
+            let definition = decode_definition(id as u16, &mut data)?;
             definitions.push(definition);
         }
         Ok(definitions)
@@ -117,12 +117,12 @@ impl EntityDefinition {
     }
 }
 
-fn decode_definition<B: GameBuf>(npc_id: u16, buf: &mut B) -> EntityDefinition {
+fn decode_definition<B: GameBuf>(npc_id: u16, buf: &mut B) -> crate::Result<EntityDefinition> {
     let mut definition = EntityDefinition::default();
     definition.id = npc_id;
     loop {
         match buf.get_u8() {
-            0 => return definition,
+            0 => return Ok(definition),
             1 => {
                 let len = buf.get_u8();
                 let _models = (0..len).map(|_| buf.get_u16()).collect::<Vec<_>>();
@@ -188,7 +188,12 @@ fn decode_definition<B: GameBuf>(npc_id: u16, buf: &mut B) -> EntityDefinition {
                 let _ = (0..len + 1).map(|_| buf.get_u16()).collect::<Vec<u16>>();
             }
             107 => definition.clickable = false,
-            opcode => unimplemented!("opcode: {}", opcode),
+            opcode => {
+                return Err(CacheError::DecodeDefinition {
+                    ty: "Entity",
+                    opcode,
+                })
+            }
         }
     }
 }

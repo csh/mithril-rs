@@ -29,8 +29,15 @@ fn plane_to_rgba(plane: &defs::MapPlane) -> bytes::Bytes {
 fn main() {
     let cache_dir = std::path::Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../../cache"));
 
-    let mut cache = CacheFileSystem::open(cache_dir).expect("cache");
-    let map_indices = defs::MapIndex::load(&mut cache).expect("map_indices");
+    let mut cache = match CacheFileSystem::open(cache_dir) {
+        Ok(cache) => cache,
+        Err(CacheError::FileMapping { path, source, .. }) => {
+            eprintln!("Failed to map required file {:?}", path);
+            eprintln!("{}", source);
+            return;
+        },
+        _ => unreachable!(),
+    };
 
     if let Err(error) = std::fs::create_dir(cache_dir.join("map")) {
         if error.kind() != std::io::ErrorKind::AlreadyExists {
@@ -38,6 +45,7 @@ fn main() {
         }
     }
 
+    let map_indices = defs::MapIndex::load(&mut cache).expect("map_indices");
     let indexed_planes = map_indices
         .values()
         .map(|index| {

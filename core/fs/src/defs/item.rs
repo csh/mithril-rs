@@ -3,7 +3,7 @@ use std::io::{prelude::*, Cursor, SeekFrom};
 use bytes::Buf;
 use mithril_buf::GameBuf;
 
-use crate::CacheFileSystem;
+use crate::{ArchiveError, CacheError, CacheFileSystem};
 
 #[derive(Debug)]
 pub struct ItemDefinition {
@@ -39,17 +39,17 @@ impl Default for ItemDefinition {
 }
 
 impl ItemDefinition {
-    pub fn load(cache: &mut CacheFileSystem) -> anyhow::Result<Vec<Self>> {
+    pub fn load(cache: &mut CacheFileSystem) -> crate::Result<Vec<Self>> {
         let archive = cache.get_archive(0, 2)?;
         let mut index = archive
             .get_entry("obj.idx")
             .map(|entry| Cursor::new(entry.contents()))
-            .expect("Failed to read obj.idx");
+            .ok_or(ArchiveError::EntryNotFound("obj.idx"))?;
 
         let mut data = archive
             .get_entry("obj.dat")
             .map(|entry| Cursor::new(entry.contents()))
-            .expect("Failed to read obj.dat");
+            .ok_or(ArchiveError::EntryNotFound("obj.dat"))?;
 
         let entries = index.get_u16() as usize;
         let mut offsets = vec![0; entries];
@@ -64,7 +64,7 @@ impl ItemDefinition {
         for (id, offset) in offsets.iter().enumerate() {
             data.seek(SeekFrom::Start(*offset))?;
 
-            let mut definition = decode_definition(id as u16, &mut data);
+            let mut definition = decode_definition(id as u16, &mut data)?;
             if let Some(lookup_id) = definition.noted_info_id {
                 if let Some(template) = definitions.get(lookup_id as usize) {
                     definition.name = template.name.clone();
@@ -118,13 +118,13 @@ impl ItemDefinition {
 }
 
 // TODO: Can this be made less ugly?
-fn decode_definition<B: GameBuf>(item_id: u16, buf: &mut B) -> ItemDefinition {
+fn decode_definition<B: GameBuf>(item_id: u16, buf: &mut B) -> crate::Result<ItemDefinition> {
     let mut definition = ItemDefinition::default();
     definition.id = item_id;
     loop {
         match buf.get_u8() {
             0 => {
-                return definition;
+                return Ok(definition);
             }
             1 => {
                 buf.get_u16();
@@ -197,7 +197,7 @@ fn decode_definition<B: GameBuf>(item_id: u16, buf: &mut B) -> ItemDefinition {
                 definition.team = Some(buf.get_u8());
             }
             opcode => {
-                unimplemented!("opcode {}", opcode);
+                return Err(CacheError::DecodeDefinition { ty: "Item", opcode });
             }
         }
     }

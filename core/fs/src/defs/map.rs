@@ -5,7 +5,7 @@ use bytes::Buf;
 
 use mithril_buf::GameBuf;
 
-use crate::CacheFileSystem;
+use crate::{CacheFileSystem, ArchiveError};
 
 const MAP_PLANES: usize = 4;
 const MAP_WIDTH: usize = 64;
@@ -26,12 +26,12 @@ pub struct MapIndex {
 }
 
 impl MapIndex {
-    pub fn load(cache: &mut CacheFileSystem) -> anyhow::Result<HashMap<u16, Self>> {
+    pub fn load(cache: &mut CacheFileSystem) -> crate::Result<HashMap<u16, Self>> {
         let archive = cache.get_archive(0, 5)?;
         let mut buf = archive
             .get_entry("map_index")
             .map(|entry| entry.contents())
-            .expect("map_index");
+            .ok_or(ArchiveError::EntryNotFound("map_index"))?;
 
         let length = buf.len();
         let num_entries = length / (3 * std::mem::size_of::<u16>() + std::mem::size_of::<u8>());
@@ -88,8 +88,8 @@ pub struct MapObject {
 }
 
 impl MapObject {
-    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> anyhow::Result<Vec<Self>> {
-        let buf = cache.get_file(4, index.object_file_id as u64)?;
+    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> crate::Result<Vec<Self>> {
+        let buf = cache.get_file(4, index.object_file_id as usize)?;
         let mut buf = crate::compression::decompress_gzip(buf)?;
 
         let mut objects = Vec::new();
@@ -185,12 +185,11 @@ pub struct MapFile {
 }
 
 impl MapFile {
-    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> anyhow::Result<Self> {
+    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> crate::Result<Self> {
         let file = cache
-            .get_file(4, index.map_file_id as u64)
-            .expect("failed to read map_file_id");
+            .get_file(4, index.map_file_id as usize)?;
 
-        let mut buf = crate::compression::decompress_gzip(file).expect("gzip decode failed");
+        let mut buf = crate::compression::decompress_gzip(file)?;
         let mut map_file = MapFile::new();
         for plane in 0..MAP_PLANES {
             for x in 0..MAP_WIDTH {

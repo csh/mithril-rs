@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use bytes::{Buf, Bytes};
 
+use crate::ArchiveError;
+
 #[derive(Debug)]
 pub struct Archive(HashMap<i32, ArchiveEntry>);
 
@@ -30,16 +32,18 @@ impl ArchiveEntry {
 
 #[allow(clippy::len_without_is_empty)]
 impl Archive {
-    pub(crate) fn decode(mut buf: Bytes) -> anyhow::Result<Self> {
+    pub(crate) fn decode(mut buf: Bytes) -> crate::Result<Self> {
         let decompressed_size = buf.get_uint(3) as usize;
         let size = buf.get_uint(3) as usize;
         let is_extracted = if size != decompressed_size {
             let decompressed = crate::compression::decompress_bzip2(buf)?;
-            assert_eq!(
-                decompressed_size,
-                decompressed.len(),
-                "decompression buffer length mismatch"
-            );
+            if decompressed.len() != decompressed_size {
+                return Err(ArchiveError::LengthMismatch {
+                    expected: decompressed_size,
+                    actual: decompressed.len(),
+                }
+                .into());
+            }
             buf = decompressed;
             true
         } else {
@@ -53,21 +57,25 @@ impl Archive {
             let contents = if is_extracted {
                 let contents = buf.slice(..header.extracted_size);
                 buf.advance(header.size);
-                assert_eq!(
-                    header.size,
-                    contents.len(),
-                    "is_extracted contents length is incorrect"
-                );
+                if contents.len() != header.size {
+                    return Err(ArchiveError::LengthMismatch {
+                        expected: header.size,
+                        actual: contents.len(),
+                    }
+                    .into());
+                }
                 contents
             } else {
                 let compressed = buf.slice(..header.size);
                 buf.advance(header.size);
                 let decompressed = crate::compression::decompress_bzip2(compressed)?;
-                assert_eq!(
-                    header.extracted_size,
-                    decompressed.len(),
-                    "decompressed buffer length mismatch"
-                );
+                if decompressed.len() != header.extracted_size {
+                    return Err(ArchiveError::LengthMismatch {
+                        expected: header.extracted_size,
+                        actual: decompressed.len(),
+                    }
+                    .into());
+                }
                 decompressed
             };
             entries.insert(name_hash, ArchiveEntry { header, contents });
@@ -84,7 +92,7 @@ impl Archive {
     }
 }
 
-fn decode_headers<B: Buf>(buf: &mut B) -> anyhow::Result<Vec<ArchiveHeader>> {
+fn decode_headers<B: Buf>(buf: &mut B) -> crate::Result<Vec<ArchiveHeader>> {
     let mut headers = Vec::with_capacity(buf.get_u16() as usize);
     for _ in 0..headers.capacity() {
         headers.push(ArchiveHeader {
