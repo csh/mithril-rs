@@ -1,6 +1,9 @@
 use super::prelude::*;
 use crate::PacketLength;
 use mithril_pos::Position;
+pub use sync::*;
+
+mod sync;
 
 #[derive(Debug, Default, Packet)]
 pub struct KeepAlive;
@@ -559,73 +562,6 @@ impl Packet for ClearRegion {
 
     fn get_type(&self) -> PacketType {
         PacketType::ClearRegion
-    }
-}
-
-#[derive(Debug)]
-pub enum EntityMovement {
-    Teleport {
-        destination: Position,
-        current: Position,
-        changed_region: bool,
-    },
-    Move {
-        direction: i32,
-    },
-}
-
-#[derive(Debug)]
-pub struct PlayerSynchronization {
-    pub player_update: Option<EntityMovement>,
-}
-
-impl Packet for PlayerSynchronization {
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        match self.player_update {
-            Some(EntityMovement::Teleport {
-                destination,
-                current,
-                changed_region,
-            }) => {
-                src.put_bits(|mut writer| {
-                    writer.put_bits(1, 1);
-                    writer.put_bits(2, 3);
-                    writer.put_bits(2, destination.get_plane() as _);
-                    writer.put_bits(1, if changed_region { 1 } else { 0 });
-                    writer.put_bits(1, 0);
-                    let (x, y) = destination.get_relative(current);
-                    writer.put_bits(7, y as _);
-                    writer.put_bits(7, x as _);
-                    writer
-                });
-            }
-            Some(EntityMovement::Move { direction }) => {
-                src.put_bits(|mut writer| {
-                    writer.put_bits(1, 1);
-                    writer.put_bits(2, 1);
-                    writer.put_bits(3, direction as _);
-                    writer.put_bits(1, 0);
-                    writer
-                });
-            }
-            None => {
-                src.put_bits(|mut writer| {
-                    writer.put_bits(1, 0);
-                    writer
-                });
-            }
-        }
-
-        src.put_bits(|mut writer| {
-            writer.put_bits(8, 0); // zero players near us to update
-            writer
-        });
-
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::PlayerSynchronization
     }
 }
 

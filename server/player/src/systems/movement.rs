@@ -1,5 +1,5 @@
 #![allow(clippy::type_complexity)]
-use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk};
+use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk, PlayerUpdate, SyncBlocks};
 use mithril_core::net::PacketType;
 use mithril_core::pos::Position;
 use mithril_server_packets::Packets;
@@ -67,22 +67,31 @@ impl<'a> System<'a> for PlayerSync {
                     });
 
                     network.send(PlayerSynchronization {
-                        player_update: Some(EntityMovement::Teleport {
-                            destination: *current_pos,
-                            current: *current_pos,
-                            changed_region: update_region,
-                        }),
+                        player_update: Some(PlayerUpdate::Update(
+                            Some(EntityMovement::Teleport {
+                                destination: *current_pos,
+                                current: *current_pos,
+                                changed_region: update_region,
+                            }),
+                            SyncBlocks::default(),
+                        )),
+                        other_players: vec![]
                     });
                 } else if has_moved {
                     let direction = previous.unwrap().0.direction_between(*current_pos);
                     network.send(PlayerSynchronization {
-                        player_update: Some(EntityMovement::Move {
-                            direction: direction as i32,
-                        }),
+                        player_update: Some(PlayerUpdate::Update(
+                            Some(EntityMovement::Move {
+                                direction: direction as i32,
+                            }),
+                            SyncBlocks::default(),
+                        )),
+                        other_players: vec![],
                     });
                 } else {
                     network.send(PlayerSynchronization {
                         player_update: None,
+                        other_players: vec![],
                     });
                 }
 

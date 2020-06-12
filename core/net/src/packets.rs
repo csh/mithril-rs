@@ -8,6 +8,7 @@ use crate::packet::PacketFactory;
 use crate::{PacketLength, PacketType};
 
 mod game;
+
 mod handshake;
 
 mod prelude {

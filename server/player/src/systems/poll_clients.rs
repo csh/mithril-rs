@@ -70,7 +70,7 @@ impl<'a> System<'a> for PollNewClients {
                         1644,
                         5608,
                         1151,
-                        u16::MAX,
+                        std::u16::MAX,
                         5065,
                         5715,
                         2449,
