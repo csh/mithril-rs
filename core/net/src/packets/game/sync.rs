@@ -4,7 +4,7 @@ use bytes::buf::BufMut;
 use bytes::{Bytes, BytesMut};
 use mithril_buf::{BitWriter, GameBufMut, Transform};
 use mithril_pos::Position;
-use mithril_text::compress;
+use mithril_text::{compress, encode_base37};
 use std::convert::TryInto;
 use std::fmt;
 
@@ -57,6 +57,19 @@ pub struct Equipment {
     hat: Option<Item>,
     hands: Option<Item>,
     feet: Option<Item>,
+}
+
+impl Default for Equipment {
+    fn default() -> Self {
+        Equipment {
+            chest: None,
+            shield: None,
+            legs: None,
+            hat: None,
+            hands: None,
+            feet: None    
+        }    
+    }    
 }
 
 impl Equipment {
@@ -113,7 +126,7 @@ impl SyncBlock for Appearance {
         buf2.put_u16(0x335);
         buf2.put_u16(0x336);
         buf2.put_u16(0x338);
-        buf2.put_u64(0); // encode name here!
+        buf2.put_u64(encode_base37(&self.name));
         buf2.put_u8(self.combat_level);
         buf2.put_u16(self.skill_level);
         // Of course, buf and buf2 are actually different :P
@@ -461,7 +474,16 @@ impl Packet for PlayerSynchronization {
             } else {
                 writer.put_bits(1, 0); // No updates
             }
-            writer.put_bits(8, self.other_players.len() as u32);
+
+            let count = self.other_players.iter().filter(|update| {
+                if let PlayerUpdate::Update(_, _) = update {
+                    true
+                } else {
+                    false    
+                }
+            }).count();
+
+            writer.put_bits(8, count as u32);
             self.other_players
                 .iter()
                 .for_each(|update| self.write_player(&mut writer, &mut block_buffer, &update));
@@ -513,7 +535,7 @@ impl PlayerSynchronization {
                         writer.put_bits(1, 1);
                         writer.put_bits(2, 3);
                         writer.put_bits(2, destination.get_plane() as _);
-                        writer.put_bits(1, if *changed_region { 1 } else { 0 });
+                        writer.put_bits(1, if *changed_region { 0 } else { 1 });
                         writer.put_bits(1, if blocks.has_updates() { 1 } else { 0 });
                         let (x, y) = destination.get_relative(*current);
                         writer.put_bits(7, y as _);
@@ -547,4 +569,81 @@ impl PlayerSynchronization {
     fn get_type(&self) -> PacketType {
         PacketType::PlayerSynchronization
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_player_sync() {
+        const PACKET: [u8; 146] = [0xE2,0xC1,0xA8,0x0F,0xB0,0x00,0x70,0x03,0xFF,0x80,0x14,0x73,0x65,0x6C,0x6C,0x69,0x6E,0x67,0x20,0x67,0x66,0x20,0x31,0x30,0x6B,0x0A,0xCD,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x12,0x00,0x01,0x1A,0x01,0x24,0x01,0x00,0x01,0x21,0x01,0x2A,0x01,0x0A,0x00,0x00,0x00,0x00,0x00,0x03,0x28,0x03,0x37,0x03,0x33,0x03,0x34,0x03,0x35,0x03,0x36,0x03,0x38,0x09,0xF9,0xE6,0x4D,0xEA,0xA3,0x58,0xF3,0x45,0x00,0x00,0x14,0x73,0x65,0x6C,0x6C,0x69,0x6E,0x67,0x20,0x67,0x66,0x20,0x31,0x30,0x6B,0x0A,0xCD,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x12,0x00,0x01,0x1A,0x01,0x24,0x01,0x00,0x01,0x21,0x01,0x2A,0x01,0x0A,0x00,0x00,0x00,0x00,0x00,0x03,0x28,0x03,0x37,0x03,0x33,0x03,0x34,0x03,0x35,0x03,0x36,0x03,0x38,0x09,0xF9,0xE6,0x4D,0xEA,0xA3,0x58,0xF3,0x45,0x00,0x00];
+        let mut buf = BytesMut::new();
+
+        let force_chat = Box::new(ForceChat {message: String::from("selling gf 10k")});
+        let appearance = Box::new(Appearance {
+            appearance_type: AppearanceType::Player(
+                Equipment::default(), 
+                vec![0, 10, 18, 26, 33, 36, 42]
+            ),    
+            name: String::from("DarkSeraphim"),
+            gender: 0x0,
+            combat_level: 69,
+            skill_level: 0,
+            colours: vec![0, 0, 0, 0, 0],
+        });
+        let mut my_blocks = SyncBlocks::default();
+        my_blocks.add_block(force_chat);
+        my_blocks.add_block(appearance);
+
+        let remove_player = PlayerUpdate::Remove();
+        let move_player = PlayerUpdate::Update(
+            Some(EntityMovement::Move{
+                direction: 4,
+            }),
+            SyncBlocks::default(),
+        );
+
+        let force_chat = Box::new(ForceChat {message: String::from("selling gf 10k")});
+        let appearance = Box::new(Appearance {
+            appearance_type: AppearanceType::Player(
+                Equipment::default(),
+                vec![0, 10, 18, 26, 33, 36, 42]
+            ),
+            name: String::from("DarkSeraphim"),
+            gender: 0x0,
+            combat_level: 69,
+            skill_level: 0,
+            colours: vec![0, 0, 0, 0, 0],
+        });
+        let mut add_blocks = SyncBlocks::default();
+        add_blocks.add_block(appearance);
+        add_blocks.add_block(force_chat);
+        let add_player = PlayerUpdate::Add(
+            AddPlayer {
+                id: 1,
+                dx: 0,
+                dy: 0
+            },
+            add_blocks
+        );
+
+        let sync_packet = PlayerSynchronization {
+            player_update: Some(PlayerUpdate::Update(
+                Some(EntityMovement::Teleport{
+                    destination: Position::default(),
+                    current: Position::default(),
+                    changed_region: true,
+                }),
+                my_blocks,
+            )),
+            other_players: vec![
+                remove_player,
+                move_player,
+                add_player,
+            ]
+        };
+        sync_packet.try_write(&mut buf).expect("Failed to write packet");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }    
 }
