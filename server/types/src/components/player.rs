@@ -1,4 +1,6 @@
+use indexmap::set::IndexSet;
 use specs::{Component, VecStorage};
+use specs::world::Index;
 use std::fmt::{self, Display};
 
 pub struct Name(pub String);
@@ -10,5 +12,11 @@ impl Display for Name {
 }
 
 impl Component for Name {
+    type Storage = VecStorage<Self>;
+}
+
+pub struct VisiblePlayers(pub IndexSet<Index>);
+
+impl Component for VisiblePlayers {
     type Storage = VecStorage<Self>;
 }

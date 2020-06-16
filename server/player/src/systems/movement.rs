@@ -1,10 +1,12 @@
 #![allow(clippy::type_complexity)]
-use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk, PlayerUpdate, SyncBlocks};
+use mithril_core::net::packets::{EntityMovement, NpcSynchronization, PlayerSynchronization, Walk, PlayerUpdate, SyncBlocks, AddPlayer};
 use mithril_core::net::PacketType;
 use mithril_core::pos::Position;
 use mithril_server_packets::Packets;
-use mithril_server_types::{CollisionDetector, Name, Network, Pathfinder, PreviousPosition};
+use mithril_server_types::{CollisionDetector, Name, Network, Pathfinder, PreviousPosition, VisiblePlayers};
 use specs::prelude::*;
+use specs::world::Index;
+use ahash::AHashMap;
 use std::sync::Arc;
 
 #[derive(SystemData)]
@@ -13,6 +15,7 @@ pub struct PlayerSyncStorage<'a> {
     network: ReadStorage<'a, Network>,
     positions: ReadStorage<'a, Position>,
     previous_positions: ReadStorage<'a, PreviousPosition>,
+    visible_players: WriteStorage<'a, VisiblePlayers>,
 }
 
 pub struct PlayerSync;
@@ -21,31 +24,63 @@ impl<'a> System<'a> for PlayerSync {
     type SystemData = (Entities<'a>, PlayerSyncStorage<'a>);
 
     #[allow(clippy::type_complexity)]
-    fn run(&mut self, (entities, sync): Self::SystemData) {
+    fn run(&mut self, (entities, mut sync): Self::SystemData) {
         (
             &entities,
             &sync.names,
             &sync.network,
             &sync.positions,
             sync.previous_positions.maybe(),
+            &sync.visible_players,
         )
             .par_join()
-            .for_each(|(entity, name, network, current_pos, previous)| {
-                let (local, local_new): (
-                    Vec<(Entity, &Position, Option<&PreviousPosition>)>,
-                    Vec<(Entity, &Position, Option<&PreviousPosition>)>,
-                ) = (&entities, &sync.positions, sync.previous_positions.maybe())
+            .for_each(|(entity, name, network, current_pos, previous, mut visible)| {
+                type RemotePlayer<'a> = (Entity, &'a Position, Option<&'a PreviousPosition>);
+                let local: Vec<RemotePlayer<'a>> 
+                    = (&entities, &sync.positions, sync.previous_positions.maybe())
                     .par_join()
                     .filter(|(e, p, _)| entity != *e && current_pos.within_distance(**p, 15))
-                    .partition(|(_, _, previous)| previous.is_some());
+                    .collect();
 
                 if !local.is_empty() {
                     log::debug!("There are {} entities near {}", local.len(), name);
                 }
 
-                if !local_new.is_empty() {
-                    log::debug!("Spawning {} entities near {}", local_new.len(), name);
-                }
+                let new_visible = visible.0;
+                let mut by_id: AHashMap<Index, RemotePlayer<'a>> = local.into_iter().fold(AHashMap::new(), |mut hash, data| {
+                    hash.insert(data.0.id(), data);
+                    hash
+                });
+
+                let mut updates = visible.0.iter().map(|idx| {
+                    if let Some(remote_player) = by_id.get(idx) {
+                        // TODO: support running
+                        // TODO: add direction
+                        PlayerUpdate::Update(Some(
+                            EntityMovement::Move {
+                                direction: 0,
+                            }
+                        ), SyncBlocks::default())
+                    } else {
+                        PlayerUpdate::Remove()
+                    }
+                }).collect::<Vec<PlayerUpdate>>();
+                
+                let new_ids = by_id.values()
+                    .filter(|(entity, _, _)| !visible.0.contains(&entity.id()))
+                    .map(|remote_player| {
+                        (remote_player.0.id(), PlayerUpdate::Add(AddPlayer {
+                            id: remote_player.0.id() as u16,
+                            dx: 0,
+                            dy: 0,
+                        }, SyncBlocks::default()))   
+                    })
+                    .map(|(id, update)| {
+                        updates.push(update);
+                        id
+                    }).collect::<Vec<Index>>();
+                // Convert to nice call
+                new_visible.append(new_ids);
 
                 let update_region = match previous {
                     Some(previous) => {
