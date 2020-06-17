@@ -1,5 +1,5 @@
 use amethyst::{
-    core::{bundle::SystemBundle, SystemDesc},
+    core::{bundle::SystemBundle, SystemDesc, Named},
     ecs::{
         DispatcherBuilder, Entities, Entity, Read, ReadStorage, System, SystemData, World, Write,
         WriteStorage, LazyUpdate
@@ -60,12 +60,12 @@ impl<'a, 'b> SystemBundle<'a, 'b> for MithrilNetworkBundle {
 }
 
 #[derive(Default, Debug)]
-pub struct PlayerEntitiesResource {
+struct PlayerEntitiesResource {
     entities: AHashMap<SocketAddr, Entity>,
 }
 
 #[derive(Default, Debug)]
-pub struct MithrilEntityManagementSystemDesc;
+struct MithrilEntityManagementSystemDesc;
 
 impl<'a, 'b> SystemDesc<'a, 'b, MithrilEntityManagementSystem>
     for MithrilEntityManagementSystemDesc
@@ -138,7 +138,7 @@ impl PacketEvent {
 }
 
 #[derive(Default, Debug)]
-pub struct MithrilEncodingSystemDesc;
+struct MithrilEncodingSystemDesc;
 
 impl<'a, 'b> SystemDesc<'a, 'b, MithrilEncodingSystem> for MithrilEncodingSystemDesc {
     fn build(self, world: &mut World) -> MithrilEncodingSystem {
@@ -148,7 +148,7 @@ impl<'a, 'b> SystemDesc<'a, 'b, MithrilEncodingSystem> for MithrilEncodingSystem
 }
 
 #[derive(Default, Debug)]
-pub struct MithrilEncodingSystem;
+struct MithrilEncodingSystem;
 
 impl<'a> System<'a> for MithrilEncodingSystem {
     type SystemData = (
@@ -190,7 +190,7 @@ impl<'a> System<'a> for MithrilEncodingSystem {
 }
 
 #[derive(Default, Debug)]
-pub struct MithrilDecodingSystemDesc;
+struct MithrilDecodingSystemDesc;
 
 impl<'a, 'b> SystemDesc<'a, 'b, MithrilDecodingSystem> for MithrilDecodingSystemDesc {
     fn build(self, world: &mut World) -> MithrilDecodingSystem {
@@ -202,7 +202,7 @@ impl<'a, 'b> SystemDesc<'a, 'b, MithrilDecodingSystem> for MithrilDecodingSystem
     }
 }
 
-pub struct MithrilDecodingSystem {
+struct MithrilDecodingSystem {
     reader: ReaderId<NetworkSimulationEvent>,
 }
 
@@ -257,7 +257,7 @@ impl<'a> System<'a> for MithrilDecodingSystem {
     }
 }
 
-pub struct MithrilHandshakeSystem {
+struct MithrilHandshakeSystem {
     reader: ReaderId<PacketEvent>,
 }
 
@@ -271,20 +271,21 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
     fn run(&mut self, (channel, mut net, lazy): Self::SystemData) {
         for event in channel.read(&mut self.reader) {
             let (entity, packet) = match event {
-                PacketEvent::Handshake(entity, packet) => (entity, packet),
+                PacketEvent::Handshake(entity, packet) => (*entity, packet),
                 _ => continue,
             };
 
             if packet.is::<HandshakeHello>() {
                 log::info!("First handshake packet received");
-                net.send_raw(*entity, HandshakeExchangeKey::default());
-            } else if let Some(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>().ok() {
+                net.send_raw(entity, HandshakeExchangeKey::default());
+            } else if let Ok(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>() {
                 log::info!("Second handshake packet received");
-                net.send_raw(*entity, HandshakeConnectResponse(LoginResponse::Success));
+                net.send_raw(entity, HandshakeConnectResponse(LoginResponse::Success));
 
                 let decoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
                 let encoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
-                lazy.insert(*entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
+                lazy.insert(entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
+                lazy.insert(entity, Named::new(attempt.username.clone()));
             }
         }
     }
