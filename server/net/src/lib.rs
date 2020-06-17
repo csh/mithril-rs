@@ -1,87 +1,321 @@
-use std::sync::Arc;
+use amethyst::{
+    core::{bundle::SystemBundle, SystemDesc},
+    ecs::{
+        DispatcherBuilder, Entities, Entity, Read, ReadStorage, System, SystemData, World, Write,
+        WriteStorage, LazyUpdate
+    },
+    network::simulation::{NetworkSimulationEvent, TransportResource},
+    shrev::{EventChannel, ReaderId},
+    Result,
+};
 
-use mithril_server_packets::Packets;
-use mithril_server_types::{ServerToWorkerMessage, WorkerToServerMessage};
-
-use derivative::Derivative;
-use parking_lot::Mutex;
-use specs::Entity;
+use mithril_core::net::{
+    Packet, self,
+    packets::{
+        HandshakeAttemptConnect, HandshakeConnectResponse, HandshakeExchangeKey, HandshakeHello,
+        LoginResponse,
+    }
+};
+use mithril_server_types::{ConnectionIsaac, NetworkAddress};
+use std::collections::VecDeque;
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
-
-mod jaggrab_worker;
-mod worker;
-
-pub use jaggrab_worker::serve_jaggrab;
+use ahash::AHashMap;
+use bytes::{BufMut, BytesMut};
 
 #[derive(Debug)]
-pub enum ListenerToServerMessage {
-    CreateEntity,
-    DestroyEntity(Entity),
-    Authenticate(NewClient),
+pub struct MithrilNetworkBundle;
+
+impl<'a, 'b> SystemBundle<'a, 'b> for MithrilNetworkBundle {
+    fn build(self, world: &mut World, builder: &mut DispatcherBuilder<'a, 'b>) -> Result<()> {
+        builder.add(
+            MithrilEntityManagementSystemDesc::default().build(world),
+            "entity_management_system",
+            &["connection_listener"],
+        );
+
+        builder.add(
+            MithrilDecodingSystemDesc::default().build(world),
+            "decoding_system",
+            &["entity_management_system"],
+        );
+
+        builder.add(
+            MithrilEncodingSystemDesc::default().build(world),
+            "encoding_system",
+            &["entity_management_system"],
+        );
+
+        builder.add(
+            MithrilHandshakeSystem {
+                reader: world
+                    .fetch_mut::<EventChannel<PacketEvent>>()
+                    .register_reader(),
+            },
+            "handshake_system",
+            &[],
+        );
+
+        Ok(())
+    }
 }
 
-#[derive(Debug)]
-pub enum ServerToListenerMessage {
-    EntityCreated(Entity),
+#[derive(Default, Debug)]
+pub struct PlayerEntitiesResource {
+    entities: AHashMap<SocketAddr, Entity>,
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct NewClient {
-    pub ip: SocketAddr,
-    pub username: String,
-    pub password: String,
-    pub entity: Entity,
+#[derive(Default, Debug)]
+pub struct MithrilEntityManagementSystemDesc;
 
-    #[derivative(Debug = "ignore")]
-    pub tx: flume::Sender<ServerToWorkerMessage>,
-    #[derivative(Debug = "ignore")]
-    pub rx: flume::Receiver<WorkerToServerMessage>,
+impl<'a, 'b> SystemDesc<'a, 'b, MithrilEntityManagementSystem>
+    for MithrilEntityManagementSystemDesc
+{
+    fn build(self, world: &mut World) -> MithrilEntityManagementSystem {
+        <MithrilEntityManagementSystem as System<'_>>::SystemData::setup(world);
+        let reader = world
+            .fetch_mut::<EventChannel<NetworkSimulationEvent>>()
+            .register_reader();
+        MithrilEntityManagementSystem::new(reader)
+    }
 }
 
-pub struct NetworkManager {
-    pub rx: Mutex<flume::Receiver<ListenerToServerMessage>>,
-    pub tx: flume::Sender<ServerToListenerMessage>,
+struct MithrilEntityManagementSystem {
+    reader: ReaderId<NetworkSimulationEvent>,
 }
 
-impl NetworkManager {
-    pub fn start(listener: TcpListener, packets: Arc<Packets>) -> Self {
-        let (listener_tx, rx) = flume::bounded(16);
-        let (tx, listener_rx) = flume::bounded(16);
+impl MithrilEntityManagementSystem {
+    pub fn new(reader: ReaderId<NetworkSimulationEvent>) -> Self {
+        Self { reader }
+    }
+}
 
-        tokio::spawn(run_listener(listener, listener_tx, listener_rx, packets));
+impl<'a> System<'a> for MithrilEntityManagementSystem {
+    type SystemData = (
+        Entities<'a>,
+        Read<'a, EventChannel<NetworkSimulationEvent>>,
+        Write<'a, PlayerEntitiesResource>,
+        WriteStorage<'a, NetworkAddress>,
+    );
 
-        Self {
-            rx: Mutex::new(rx),
-            tx,
+    fn run(&mut self, (entities, net_events, mut players, mut network_address): Self::SystemData) {
+        for event in net_events.read(&mut self.reader) {
+            match event {
+                NetworkSimulationEvent::Connect(addr) => {
+                    log::info!("New connection from: {}", addr);
+                    players.entities.entry(*addr).or_insert_with(|| {
+                        entities
+                            .build_entity()
+                            .with(NetworkAddress(*addr), &mut network_address)
+                            .build()
+                    });
+                }
+                NetworkSimulationEvent::Disconnect(addr) => {
+                    if players.entities.remove(addr).is_some() {
+                        log::info!("Disconnected: {}", addr);
+                    }
+                }
+                NetworkSimulationEvent::RecvError(e) => {
+                    log::error!("Recv Error: {:?}", e);
+                }
+                _ => {}
+            }
         }
     }
 }
 
-async fn run_listener(
-    mut listener: TcpListener,
-    listener_tx: flume::Sender<ListenerToServerMessage>,
-    listener_rx: flume::Receiver<ServerToListenerMessage>,
-    packets: Arc<Packets>,
-) {
-    let rx = Arc::new(Mutex::new(listener_rx));
-    loop {
-        let (stream, ip) = match listener.accept().await {
-            Ok(res) => res,
-            Err(e) => {
-                log::error!("Failed to accept connection; {}", e);
-                continue;
-            }
-        };
-        log::info!("New connection from {}", ip);
-        tokio::spawn(worker::run_worker(
-            stream,
-            ip,
-            listener_tx.clone(),
-            Arc::clone(&rx),
-            Arc::clone(&packets),
-        ));
-        tokio::task::yield_now().await;
+pub enum PacketEvent {
+    Handshake(Entity, Box<dyn Packet>),
+    Gameplay(Entity, Box<dyn Packet>),
+}
+
+impl PacketEvent {
+    fn entity(&self) -> Entity {
+        match self {
+            PacketEvent::Handshake(entity, _) => *entity,
+            PacketEvent::Gameplay(entity, _) => *entity,
+        }
     }
+}
+
+#[derive(Default, Debug)]
+pub struct MithrilEncodingSystemDesc;
+
+impl<'a, 'b> SystemDesc<'a, 'b, MithrilEncodingSystem> for MithrilEncodingSystemDesc {
+    fn build(self, world: &mut World) -> MithrilEncodingSystem {
+        <MithrilEncodingSystem as System<'_>>::SystemData::setup(world);
+        MithrilEncodingSystem::default()
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct MithrilEncodingSystem;
+
+impl<'a> System<'a> for MithrilEncodingSystem {
+    type SystemData = (
+        Write<'a, TransportResource>,
+        Write<'a, MithrilTransportResource>,
+        ReadStorage<'a, NetworkAddress>,
+        WriteStorage<'a, ConnectionIsaac>,
+    );
+
+    fn run(&mut self, (mut transport, mut send_queue, address, mut rng): Self::SystemData) {
+        while let Some(event) = send_queue.events.pop_front() {
+            let network_address = match address.get(event.entity()) {
+                Some(address) => address,
+                None => continue,
+            };
+
+            let mut encoded = bytes::BytesMut::new();
+            let encode_result = match event {
+                PacketEvent::Handshake(_, packet) => {
+                    net::encode_packet(None, packet, &mut encoded)
+                }
+                PacketEvent::Gameplay(entity, packet) => {
+                    if let Some(isaac) = rng.get_mut(entity) {
+                        net::encode_packet(Some(&mut isaac.decoding), packet, &mut encoded)
+                    } else {
+                        Err(anyhow::anyhow!(
+                            "Attempted to send Gameplay packet before initialising ISAAC"
+                        ))
+                    }
+                }
+            };
+
+            match encode_result {
+                Ok(_) => transport.send(network_address.0, &encoded),
+                Err(cause) => log::error!("Failed to encode packet; {}", cause),
+            }
+        }
+    }
+}
+
+#[derive(Default, Debug)]
+pub struct MithrilDecodingSystemDesc;
+
+impl<'a, 'b> SystemDesc<'a, 'b, MithrilDecodingSystem> for MithrilDecodingSystemDesc {
+    fn build(self, world: &mut World) -> MithrilDecodingSystem {
+        <MithrilDecodingSystem as System<'_>>::SystemData::setup(world);
+        let reader = world
+            .fetch_mut::<EventChannel<NetworkSimulationEvent>>()
+            .register_reader();
+        MithrilDecodingSystem::new(reader)
+    }
+}
+
+pub struct MithrilDecodingSystem {
+    reader: ReaderId<NetworkSimulationEvent>,
+}
+
+impl MithrilDecodingSystem {
+    pub fn new(reader: ReaderId<NetworkSimulationEvent>) -> Self {
+        Self { reader }
+    }
+}
+
+impl<'a> System<'a> for MithrilDecodingSystem {
+    type SystemData = (
+        Read<'a, EventChannel<NetworkSimulationEvent>>,
+        Read<'a, PlayerEntitiesResource>,
+        Write<'a, EventChannel<PacketEvent>>,
+        WriteStorage<'a, ConnectionIsaac>,
+    );
+
+    fn run(&mut self, (net_events, players, mut incoming, mut rng): Self::SystemData) {
+        for event in net_events.read(&mut self.reader) {
+            if let NetworkSimulationEvent::Message(addr, payload) = event {
+                let entity = match players.entities.get(addr) {
+                    Some(entity) => *entity,
+                    None => continue,
+                };
+
+                log::info!("{}: {:?}", addr, payload);
+
+                let mut payload = {
+                    let mut buf = bytes::BytesMut::with_capacity(payload.len());
+                    buf.extend_from_slice(payload);
+                    buf
+                };
+
+                let (emit_gameplay, packet) = match rng.get_mut(entity) {
+                    Some(isaac) => (
+                        true,
+                        net::decode_packet(Some(&mut isaac.decoding), &mut payload),
+                    ),
+                    None => (false, net::decode_packet(None, &mut payload)),
+                };
+
+                if let Ok(packet) = packet {
+                    let packet_event = if emit_gameplay {
+                        PacketEvent::Gameplay(entity, packet)
+                    } else {
+                        PacketEvent::Handshake(entity, packet)
+                    };
+                    incoming.single_write(packet_event);
+                }
+            }
+        }
+    }
+}
+
+pub struct MithrilHandshakeSystem {
+    reader: ReaderId<PacketEvent>,
+}
+
+impl<'a> System<'a> for MithrilHandshakeSystem {
+    type SystemData = (
+        Read<'a, EventChannel<PacketEvent>>,
+        Write<'a, MithrilTransportResource>,
+        Read<'a, LazyUpdate>,
+    );
+
+    fn run(&mut self, (channel, mut net, lazy): Self::SystemData) {
+        for event in channel.read(&mut self.reader) {
+            let (entity, packet) = match event {
+                PacketEvent::Handshake(entity, packet) => (entity, packet),
+                _ => continue,
+            };
+
+            if packet.is::<HandshakeHello>() {
+                log::info!("First handshake packet received");
+                net.send_raw(*entity, HandshakeExchangeKey::default());
+            } else if let Some(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>().ok() {
+                log::info!("Second handshake packet received");
+                net.send_raw(*entity, HandshakeConnectResponse(LoginResponse::Success));
+
+                let decoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
+                let encoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
+                lazy.insert(*entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct MithrilTransportResource {
+    events: VecDeque<PacketEvent>,
+}
+
+impl MithrilTransportResource {
+    pub fn send<P: Packet>(&mut self, entity: Entity, packet: P) {
+        self.events
+            .push_back(PacketEvent::Gameplay(entity, Box::new(packet)))
+    }
+
+    pub fn send_raw<P: Packet>(&mut self, entity: Entity, packet: P) {
+        self.events
+            .push_back(PacketEvent::Handshake(entity, Box::new(packet)))
+    }
+}
+
+fn prepare_isaac_seed(client_key: u64, server_key: u64, increment: u32) -> [u8; 32] {
+    let mut seed = BytesMut::with_capacity(32);
+    seed.put_u32_le((client_key >> 32) as u32 + increment);
+    seed.put_u32_le(client_key as u32 + increment);
+    seed.put_u32_le((server_key >> 32) as u32 + increment);
+    seed.put_u32_le(server_key as u32 + increment);
+    seed.put(&[0u8; 16][..]);
+
+    let mut actual_seed = [0u8; 32];
+    actual_seed.copy_from_slice(&mut seed);
+    actual_seed
 }

@@ -5,17 +5,14 @@ authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
 
 [dependencies]
-mithril-server-packets = { path = "../packets" }
 mithril-server-types = { path = "../types" }
 mithril-core = { path = "../../core" }
-
-tokio = { version = "0.2", features = ["tcp", "rt-core"] }
-tokio-util = { version = "0.3", features = ["codec"] }
-parking_lot = "0.10"
-derivative = "2.1"
-futures = "0.3"
 anyhow = "1.0"
-crossbeam = "0.7"
-specs = "0.16"
-flume = "0.7"
+ahash = "0.3"
+bytes = "0.5"
 log = "0.4"
+
+[dependencies.amethyst]
+version = "0.15"
+default-features = false
+features = ["empty", "network"]
