@@ -8,6 +8,7 @@ use amethyst::{
 
 use mithril::{
     core::fs::CacheFileSystem,
+    player::PlayerEntityBundle,
     net::MithrilNetworkBundle,
     types::{
         CollisionDetector,
@@ -25,7 +26,8 @@ fn main() -> Result<()> {
 
     let game_data = GameDataBuilder::default()
         .with_bundle(TcpNetworkBundle::new(Some(listener), 4096))?
-        .with_bundle(MithrilNetworkBundle)?;
+        .with_bundle(MithrilNetworkBundle)?
+        .with_bundle(PlayerEntityBundle)?;
 
     let mut game = Application::build(assets_dir, LoadingState::default())?
         .with_fixed_step_length(Duration::from_millis(600))
