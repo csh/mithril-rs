@@ -5,7 +5,6 @@ authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
 
 [dependencies]
-mithril-server-packets = { path = "../packets" }
 mithril-server-types = { path = "../types" }
 mithril-server-net = { path = "../net" }
 mithril-core = { path = "../../core" }
@@ -14,3 +13,8 @@ parking_lot = "0.10.2"
 specs = { version = "0.16", features = ["shred-derive"] }
 log = "0.4"
 rand = "0.7"
+
+[dependencies.amethyst]
+version = "0.15"
+default-features = false
+features = ["empty", "network"]

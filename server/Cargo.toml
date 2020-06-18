@@ -6,20 +6,19 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "mithril"
+
 [dependencies]
-mithril-server-packets = { path = "packets" }
 mithril-server-player = { path = "player" }
 mithril-server-types = { path = "types" }
 mithril-server-net = { path = "net" }
 mithril-core = { path = "../core" }
 
-tokio = { version = "0.2", features = ["rt-threaded", "sync", "net"] }
-tokio-util = { version = "0.3", features = ["codec"] }
-parking_lot = "0.10"
-simple_logger = "1"
-crossbeam = "0.7"
-spin_sleep = "1"
 anyhow = "1.0"
-specs = "0.16"
-ctrlc = "3.1"
 log = "0.4"
+
+[dependencies.amethyst]
+version = "0.15"
+default-features = false
+features = ["empty", "network"]
