@@ -1,136 +1,89 @@
-extern crate mithril_server_net as net;
-extern crate mithril_server_packets as packets;
-extern crate mithril_server_types as types;
+use std::net::TcpListener;
+use std::time::Duration;
 
-use anyhow::Context;
-use mithril_core::fs::CacheFileSystem;
-use parking_lot::Mutex;
-use specs::prelude::*;
-use std::panic;
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use tokio::runtime;
-use tokio::runtime::Handle;
-use types::CollisionDetector;
+use amethyst::{
+    network::simulation::tcp::TcpNetworkBundle,
+    prelude::*, utils::application_dir, Result,
+};
 
-mod systems;
+use mithril::{
+    core::fs::CacheFileSystem,
+    net::MithrilNetworkBundle,
+    types::{
+        CollisionDetector,
+        auth::{AlwaysAllowStrategy, Authenticator}
+    },
+};
 
-struct GameState<'a, 'b> {
-    _runtime: Handle,
-    shutdown_rx: crossbeam::Receiver<()>,
-    world: World,
-    dispatcher: Dispatcher<'a, 'b>,
+fn main() -> Result<()> {
+    amethyst::start_logger(Default::default());
+
+    let listener = TcpListener::bind("0.0.0.0:43594")?;
+    listener.set_nonblocking(true)?;
+
+    let assets_dir = application_dir("../cache")?;
+
+    let game_data = GameDataBuilder::default()
+        .with_bundle(TcpNetworkBundle::new(Some(listener), 4096))?
+        .with_bundle(MithrilNetworkBundle)?;
+
+    let mut game = Application::build(assets_dir, LoadingState::default())?
+        .with_fixed_step_length(Duration::from_millis(600))
+        .build(game_data)?;
+    game.run();
+    Ok(())
 }
 
-pub fn handle_shutdown(tx: crossbeam::Sender<()>) {
-    ctrlc::set_handler(move || {
-        tx.send(()).expect("Failed to send CTRL-C shutdown");
-    })
-    .expect("Failed to set CTRL-C handler");
+#[derive(Default, Debug)]
+pub struct LoadingState {
+    loaded: bool,
 }
 
-pub async fn run(runtime: Handle) {
-    let (shutdown_tx, shutdown_rx) = crossbeam::bounded(1);
-    handle_shutdown(shutdown_tx);
+impl SimpleState for LoadingState {
+    fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
+        log::info!("Initializing Mithril..");
 
-    let bind_addr = "0.0.0.0:43594";
-    let listener = match TcpListener::bind(bind_addr)
-        .await
-        .context("Failed to bind listener")
-    {
-        Ok(listener) => listener,
-        Err(e) => {
-            log::error!("Server failed to start: {}", e);
-            std::process::exit(1);
+        let cache_path = match application_dir("../cache") {
+            Ok(path) => path,
+            Err(e) => panic!(e),
+        };
+
+        match CacheFileSystem::open(cache_path) {
+            Ok(cache) => {
+                data.world.insert(cache);
+            }
+            Err(cause) => {
+                log::error!("Failed to open cache; {}", cause);
+                return;
+            }
+        };
+
+        let mut cache = data.world.get_mut::<CacheFileSystem>().unwrap();
+        match CollisionDetector::new(&mut cache) {
+            Ok(detector) => data.world.insert(detector),
+            Err(cause) => {
+                log::error!("Failed to map collisions; {}", cause);
+                return;
+            }
         }
-    };
 
-    log::info!("Listening on {}", bind_addr);
-
-    let cache_dir = if cfg!(debug_assertions) {
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../cache")
-    } else {
-        "./cache"
-    };
-    // TODO: Implement proper error handling in core/fs module
-    let mut cache = CacheFileSystem::open(cache_dir).unwrap_or_else(|_| {
-        log::error!(
-            "Unable to find cache data; please place files in {}",
-            cache_dir
-        );
-        std::process::exit(1);
-    });
-
-    let collision_detector = CollisionDetector::new(&mut cache).unwrap_or_else(|why| {
-        log::error!(
-            "Mithril experienced an error whilst loading map data; {}",
-            why
-        );
-        std::process::exit(1);
-    });
-
-    let mut world = World::new();
-    let mut dispatcher = systems::build_dispatcher();
-
-    let packets = Arc::new(packets::Packets::default());
-    let network_manager = net::NetworkManager::start(listener, Arc::clone(&packets));
-
-    // TODO: Can this be made any cleaner?
-    let cache = Arc::new(Mutex::new(cache));
-    net::serve_jaggrab(Arc::clone(&cache));
-
-    world.insert(cache);
-    world.insert(collision_detector);
-    world.insert(packets);
-    world.insert(network_manager);
-
-    dispatcher.setup(&mut world);
-
-    let mut state = GameState {
-        _runtime: runtime,
-        shutdown_rx,
-        world,
-        dispatcher,
-    };
-
-    let panic = panic::catch_unwind(panic::AssertUnwindSafe(|| run_loop(&mut state)));
-
-    if panic.is_err() {
-        log::error!("Mithril has crashed!");
+        data.world.insert(Authenticator::new(AlwaysAllowStrategy));
+        self.loaded = true;
     }
 
-    // TODO: Shut down server gracefully
-
-    log::info!("Mithril is shutting down");
-    std::process::exit(0);
-}
-
-fn run_loop(state: &mut GameState) {
-    let mut loop_helper = spin_sleep::LoopHelper::builder().build_with_target_rate(6_f64);
-    loop {
-        if state.shutdown_rx.try_recv().is_ok() {
-            return;
+    fn update(&mut self, _data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
+        if self.loaded {
+            Trans::Switch(Box::new(GameState))
+        } else {
+            Trans::Quit
         }
-
-        loop_helper.loop_start();
-        state.dispatcher.dispatch(&state.world);
-        state.world.maintain();
-        loop_helper.loop_sleep();
     }
 }
 
-fn main() {
-    simple_logger::init_with_level(log::Level::Debug).expect("Failed to init logging");
+pub struct GameState;
 
-    let mut runtime = runtime::Builder::new()
-        .threaded_scheduler()
-        .thread_name("mithril-worker-pool")
-        .enable_all()
-        .build()
-        .expect("failed to start tokio runtime");
-
-    let handle = runtime.handle().clone();
-    runtime.block_on(async move {
-        run(handle).await;
-    });
+impl SimpleState for GameState {
+    fn on_start(&mut self, _data: StateData<'_, GameData<'_, '_>>) {
+        log::info!("Mithril is ready!");
+    }
 }
