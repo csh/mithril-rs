@@ -20,7 +20,7 @@ use mithril_server_types::{ConnectionIsaac, NetworkAddress};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use ahash::AHashMap;
-use bytes::{BufMut, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 
 #[derive(Debug)]
 pub struct MithrilNetworkBundle;
@@ -236,21 +236,36 @@ impl<'a> System<'a> for MithrilDecodingSystem {
                     buf
                 };
 
-                let (emit_gameplay, packet) = match rng.get_mut(entity) {
-                    Some(isaac) => (
-                        true,
-                        net::decode_packet(Some(&mut isaac.decoding), &mut payload),
-                    ),
-                    None => (false, net::decode_packet(None, &mut payload)),
-                };
-
-                if let Ok(packet) = packet {
-                    let packet_event = if emit_gameplay {
-                        PacketEvent::Gameplay(entity, packet)
-                    } else {
-                        PacketEvent::Handshake(entity, packet)
+                /*
+                 * Multiple packets may arrive in a single payload due to the timing of flushes.
+                 * Tokio previously made this behaviour transparent, here we have a while loop to
+                 * restore the effect.
+                 *
+                 * An example of packets that may arrive together are MouseClicked and PrivacyOption
+                 */
+                while payload.has_remaining() {
+                    let (emit_gameplay, packet) = match rng.get_mut(entity) {
+                        Some(isaac) => (
+                            true,
+                            net::decode_packet(Some(&mut isaac.decoding), &mut payload),
+                        ),
+                        None => (false, net::decode_packet(None, &mut payload)),
                     };
-                    incoming.single_write(packet_event);
+
+                    match packet {
+                        Ok(packet) => {
+                            let packet_event = if emit_gameplay {
+                                PacketEvent::Gameplay(entity, packet)
+                            } else {
+                                PacketEvent::Handshake(entity, packet)
+                            };
+                            incoming.single_write(packet_event);
+                        }
+                        Err(cause) => {
+                            log::error!("Failed to decode packet; {}", cause);
+                            break;
+                        }
+                    }
                 }
             }
         }

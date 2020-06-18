@@ -1,165 +1,100 @@
-use anyhow::Context;
 use bytes::{Buf, BufMut, BytesMut};
-use rand::{Rng, SeedableRng};
-use tokio_util::codec::{Decoder, Encoder};
+use rand::Rng;
+use rand_isaac::IsaacRng;
 
 use crate::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 
-pub struct RunescapeCodec {
-    encoding_rng: Option<rand_isaac::IsaacRng>,
-    decoding_rng: Option<rand_isaac::IsaacRng>,
-    stage: PacketStage,
+pub fn encode_packet(isaac: Option<&mut IsaacRng>, packet: Box<dyn Packet>, dst: &mut BytesMut) -> anyhow::Result<()> {
+    log::info!("Encoding a {:?}", packet.get_type());
+    let isaac = match isaac {
+        Some(isaac) => isaac,
+        None => {
+            packet.try_write(dst)?;
+            return Ok(());
+        }
+    };
+
+    let encoding_buf = &mut BytesMut::new();
+    packet.try_write(encoding_buf)?;
+
+    let packet_type = packet.get_type();
+    let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
+    dst.put_u8(packet_id);
+    match packet_type.packet_length() {
+        Some(PacketLength::Fixed(len)) => debug_assert_eq!(encoding_buf.len(), len, "packet length is fixed but did not match"),
+        Some(PacketLength::VariableByte) => dst.put_u8(encoding_buf.len() as u8),
+        Some(PacketLength::VariableShort) => dst.put_u16(encoding_buf.len() as u16),
+        None => {}
+    }
+    dst.extend_from_slice(encoding_buf);
+    Ok(())
 }
 
-#[allow(clippy::new_without_default)]
-impl RunescapeCodec {
-    pub fn new() -> Self {
-        RunescapeCodec {
-            decoding_rng: None,
-            encoding_rng: None,
-            stage: PacketStage::Handshake,
+pub fn decode_packet(isaac: Option<&mut IsaacRng>, src: &mut BytesMut) -> anyhow::Result<Box<dyn Packet>> {
+    let packet_id = match isaac {
+        Some(isaac) => {
+            let decoded_id = src.get_u8().wrapping_sub(isaac.gen::<u8>());
+            PacketId::new(decoded_id, PacketDirection::Serverbound, PacketStage::Gameplay)
         }
-    }
+        None => PacketId::new(src[0], PacketDirection::Serverbound, PacketStage::Handshake),
+    };
 
-    pub fn advance_stage(&mut self) {
-        log::debug!("Enabling processing of gameplay packets");
-        match self.stage {
-            PacketStage::Handshake => self.stage = PacketStage::Gameplay,
-            PacketStage::Gameplay => unreachable!(
-                "advance_stage() should only be called once after the login sequence has finished"
-            ),
+    let packet_type = match PacketType::get_from_id(packet_id) {
+        Some(packet_type) => packet_type,
+        None => anyhow::bail!("Unknown packet"),
+    };
+
+    log::info!("Decoding a {:?}", packet_type);
+    let mut read_buffer = match packet_type.packet_length() {
+        Some(PacketLength::VariableByte) => {
+            let split_index = src.get_u8() as usize;
+            src.split_to(split_index)
         }
-    }
+        Some(PacketLength::VariableShort) => {
+            let split_index = src.get_u16() as usize;
+            src.split_to(split_index)
+        }
+        Some(PacketLength::Fixed(expected_len)) => {
+            src.split_to(expected_len)
+        }
+        None => src.split_to(src.len())
+    };
 
-    pub fn set_isaac_keys(&mut self, server_key: u64, client_key: u64) {
-        log::debug!("Setting ISAAC encryption keys");
-        let seed_inputs = [
-            client_key.wrapping_shr(32) as u32,
-            client_key as u32,
-            server_key.wrapping_shr(32) as u32,
-            server_key as u32,
-        ];
-        self.decoding_rng = Some(rand_isaac::IsaacRng::from_seed(prepare_isaac_seed(
-            seed_inputs,
-            0,
-        )));
-        self.encoding_rng = Some(rand_isaac::IsaacRng::from_seed(prepare_isaac_seed(
-            seed_inputs,
-            50,
-        )));
-    }
+    let mut packet = packet_type.create().expect("packet creation");
+    packet.try_read(&mut read_buffer).map(|_| packet)
 }
 
-fn prepare_isaac_seed(seed_input: [u32; 4], increment: u32) -> [u8; 32] {
-    let mut seed = BytesMut::with_capacity(32);
-    for input in &seed_input {
-        seed.put_u32_le(input + increment);
-    }
-    seed.put(&[0u8; 16][..]);
+#[cfg(test)]
+mod tests {
+    use crate::packets::ServerMessage;
+    use rand::SeedableRng;
+    use super::*;
 
-    let mut actual_seed = [0u8; 32];
-    seed.copy_to_slice(&mut actual_seed);
-    actual_seed
-}
-
-impl Encoder<Box<dyn Packet>> for RunescapeCodec {
-    type Error = anyhow::Error;
-
-    fn encode(&mut self, item: Box<dyn Packet>, dst: &mut BytesMut) -> anyhow::Result<()> {
-        match self.stage {
-            PacketStage::Handshake => item.try_write(dst),
-            PacketStage::Gameplay => {
-                anyhow::ensure!(self.encoding_rng.is_some(), "ISAAC has not been configured");
-                let isaac = self.encoding_rng.as_mut().unwrap();
-                let packet_type = item.get_type();
-                log::debug!("Sending a {:?}", packet_type);
-                let mut encoding_buf = BytesMut::new();
-                item.try_write(&mut encoding_buf)?;
-                let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
-                dst.put_u8(packet_id);
-                if let Some(packet_length) = packet_type.packet_length() {
-                    match packet_length {
-                        PacketLength::VariableByte => dst.put_u8(encoding_buf.len() as u8),
-                        PacketLength::VariableShort => dst.put_u16(encoding_buf.len() as u16),
-                        PacketLength::Fixed(len) => {
-                            assert_eq!(encoding_buf.len(), len, "fixed length mismatch");
-                        }
-                    }
-                }
-                dst.put(encoding_buf);
-                Ok(())
-            }
-        }
-    }
-}
-
-impl Decoder for RunescapeCodec {
-    type Item = Box<dyn Packet>;
-    type Error = anyhow::Error;
-
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
-            return Ok(None);
-        }
-
-        let packet_id = src[0];
-        let packet_type = match self.stage {
-            PacketStage::Handshake => {
-                // TODO: Figure out a more elegant solution than peeking packet_id
-                PacketType::get_from_id(PacketId::new(
-                    packet_id,
-                    PacketDirection::Serverbound,
-                    self.stage,
-                ))
-            }
-            PacketStage::Gameplay => {
-                anyhow::ensure!(self.decoding_rng.is_some(), "ISAAC has not been configured");
-                let isaac = self.decoding_rng.as_mut().unwrap();
-                let decoded_id = src.get_u8().wrapping_sub(isaac.gen::<u8>());
-                PacketType::get_from_id(PacketId::new(
-                    decoded_id,
-                    PacketDirection::Serverbound,
-                    self.stage,
-                ))
-            }
+    #[test]
+    fn test_plain_encode() {
+        let packet = ServerMessage {
+            message: "Hello World".to_string()
         };
 
-        match packet_type {
-            Some(packet_type) => {
-                let mut src = match packet_type.packet_length() {
-                    Some(PacketLength::Fixed(len)) => src.split_to(len),
-                    Some(PacketLength::VariableByte) => {
-                        let len = src.get_u8();
-                        src.split_to(len as usize)
-                    }
-                    Some(PacketLength::VariableShort) => {
-                        let len = src.get_u16();
-                        src.split_to(len as usize)
-                    }
-                    None => src.split_to(src.remaining()),
-                };
-                log::debug!("We received a {:?}; len = {}", packet_type, src.len());
-                let mut packet = packet_type.create().context("packet construction failed")?;
-                packet.try_read(&mut src).context("packet read failed")?;
-                if src.has_remaining() {
-                    log::debug!(
-                        "buf still contains {} bytes after reading {:?}; {:X}",
-                        src.len(),
-                        packet_type,
-                        src
-                    );
-                }
-                Ok(Some(packet))
-            }
-            None => {
-                log::warn!(
-                    "Received unknown packet ID for {:?}; skipping packet {:02X}",
-                    self.stage,
-                    packet_id
-                );
-                src.advance(src.len());
-                Ok(None)
-            }
-        }
+        let mut buf = BytesMut::new();
+        assert!(encode_packet(None, Box::new(packet), &mut buf).is_ok(), "ServerMessage is encodable");
+
+        println!("{:02X}", buf);
+        println!("{:?}", buf);
+    }
+
+    #[test]
+    fn test_isaac_encode() {
+        let mut encode_isaac = Some(rand_isaac::IsaacRng::seed_from_u64(0));
+        let message = "Hello World".to_owned();
+
+        let packet = crate::packets::ServerMessage {
+            message: message.clone()
+        };
+
+        let mut buf = BytesMut::new();
+        assert!(encode_packet(encode_isaac.as_mut(), Box::new(packet), &mut buf).is_ok(), "ServerMessage is encodable");
+        println!("{:02X}", buf);
+        println!("{:?}", buf);
     }
 }

@@ -1,4 +1,4 @@
-use std::any::Any;
+use downcast::Any;
 
 use ahash::AHashMap;
 use bytes::BytesMut;
@@ -657,7 +657,7 @@ impl PacketFactory {
     }
 }
 
-pub trait Packet: Send + Sync + IntoAny {
+pub trait Packet: Send + Sync + Any {
     fn try_read(&mut self, _src: &mut BytesMut) -> anyhow::Result<()> {
         unimplemented!()
     }
@@ -669,19 +669,4 @@ pub trait Packet: Send + Sync + IntoAny {
     fn get_type(&self) -> PacketType;
 }
 
-pub fn cast_packet<P: Packet + 'static + Send>(packet: Box<dyn Packet>) -> P {
-    *packet.into_any().downcast().unwrap()
-}
-
-pub trait IntoAny {
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-}
-
-impl<T> IntoAny for T
-where
-    T: Any,
-{
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-}
+downcast!(dyn Packet);
