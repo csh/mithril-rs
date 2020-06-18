@@ -173,7 +173,7 @@ impl<'a> System<'a> for MithrilEncodingSystem {
                 }
                 PacketEvent::Gameplay(entity, packet) => {
                     if let Some(isaac) = rng.get_mut(entity) {
-                        net::encode_packet(Some(&mut isaac.decoding), packet, &mut encoded)
+                        net::encode_packet(Some(&mut isaac.encoding), packet, &mut encoded)
                     } else {
                         Err(anyhow::anyhow!(
                             "Attempted to send Gameplay packet before initialising ISAAC"
