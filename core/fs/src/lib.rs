@@ -24,21 +24,22 @@ pub type Result<T> = std::result::Result<T, CacheError>;
 
 #[derive(Debug)]
 pub struct CacheFileSystem {
-    data_file: Cursor<Mmap>,
+    data_file: Mmap,
     indices: Vec<CacheIndex>,
 }
 
 #[derive(Debug)]
 struct CacheIndex {
-    index_file: Cursor<Mmap>,
+    index_file: Mmap,
     len: usize
 }
 
 impl CacheIndex {
-    fn get_block(&mut self, file_number: usize) -> Result<(u64, u64)> {
-        self.index_file.seek(SeekFrom::Start(INDEX_SIZE * file_number as u64))?;
-        let size = self.index_file.get_uint(3);
-        let initial_block = self.index_file.get_uint(3);
+    fn get_block(&self, file_number: usize) -> Result<(u64, u64)> {
+        let mut cursor = Cursor::new(&self.index_file);
+        cursor.seek(SeekFrom::Start(INDEX_SIZE * file_number as u64))?;
+        let size = cursor.get_uint(3);
+        let initial_block = cursor.get_uint(3);
         Ok((size, initial_block))
     }
 }
@@ -52,10 +53,9 @@ impl CacheFileSystem {
             let path = path.join(format!("main_file_cache.idx{}", i));
             match File::open(&path)
                 .and_then(|file| unsafe { memmap::Mmap::map(&file) })
-                .map(Cursor::new)
             {
                 Ok(file) => indices.push(CacheIndex {
-                    len: file.remaining() / INDEX_SIZE as usize,
+                    len: file.len() / INDEX_SIZE as usize,
                     index_file: file,
                 }),
                 Err(source) => return Err(CacheError::FileMapping { path, source }),
@@ -63,9 +63,8 @@ impl CacheFileSystem {
         }
 
         let path = path.join("main_file_cache.dat");
-        let cur: Cursor<Mmap> = match File::open(&path)
+        let cur = match File::open(&path)
             .and_then(|file| unsafe { memmap::Mmap::map(&file) })
-            .map(Cursor::new)
         {
             Ok(file) => file,
             Err(source) => return Err(CacheError::FileMapping { path, source }),
@@ -78,10 +77,10 @@ impl CacheFileSystem {
         })
     }
 
-    pub fn len(&mut self, index_number: usize) -> Result<usize> {
+    pub fn len(&self, index_number: usize) -> Result<usize> {
         let index = self
             .indices
-            .get_mut(index_number)
+            .get(index_number)
             .ok_or(CacheError::IndexNotFound(index_number))?;
         Ok(index.len)
     }
@@ -106,10 +105,10 @@ impl CacheFileSystem {
         Ok((hashes, archive_hash))
     }
 
-    pub fn get_file(&mut self, index_number: usize, file_number: usize) -> Result<Bytes> {
+    pub fn get_file(&self, index_number: usize, file_number: usize) -> Result<Bytes> {
         let index = self
             .indices
-            .get_mut(index_number)
+            .get(index_number)
             .ok_or(CacheError::IndexNotFound(index_number))?;
 
         if file_number > index.len {
@@ -134,14 +133,15 @@ impl CacheFileSystem {
         let mut position = initial_block * BLOCK_SIZE;
         let mut combined_buf = BytesMut::with_capacity(size as usize);
 
+        let mut cursor = Cursor::new(&self.data_file);
         for file_part in 0..num_parts {
-            self.data_file
+            cursor
                 .seek(SeekFrom::Start(position))?;
 
-            let read_file_number = self.data_file.get_u16();
-            let read_file_part = self.data_file.get_u16();
-            let next_block = self.data_file.get_uint(3);
-            let next_type = self.data_file.get_u8();
+            let read_file_number = cursor.get_u16();
+            let read_file_part = cursor.get_u16();
+            let next_block = cursor.get_uint(3);
+            let next_type = cursor.get_u8();
 
             if file_part != read_file_part {
                 return Err(FilePartError::PartMismatch {
@@ -154,8 +154,7 @@ impl CacheFileSystem {
             let part_size = std::cmp::min(size as usize - combined_buf.len(), CHUNK_SIZE as usize);
             let mut part_buf = vec![0; part_size];
 
-            let read = self
-                .data_file
+            let read = cursor
                 .read(&mut part_buf)?;
 
             if read != part_size {
@@ -178,7 +177,7 @@ impl CacheFileSystem {
     }
 
     pub fn get_archive(
-        &mut self,
+        &self,
         index_number: usize,
         file_number: usize,
     ) -> Result<Archive> {
@@ -285,7 +284,7 @@ mod tests {
     pub fn error_invalid_index() {
         skip_ci!();
 
-        let mut cache = open_filesystem();
+        let cache = open_filesystem();
         match cache.get_file(5, 0) {
             Err(CacheError::IndexNotFound(_)) => {},
             _ => panic!("Revision only has 5 index files")
