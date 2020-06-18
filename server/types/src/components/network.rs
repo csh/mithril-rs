@@ -1,53 +1,28 @@
 use std::net::SocketAddr;
 
-use derivative::Derivative;
-use mithril_core::net::Packet;
-use parking_lot::Mutex;
-
 use specs::{Component, VecStorage};
 
-/// Marker that indicates an entity is networked, allows for sending data back to the client.
-pub struct Network {
-    pub rx: Mutex<flume::Receiver<WorkerToServerMessage>>,
-    pub tx: flume::Sender<ServerToWorkerMessage>,
-    pub ip: SocketAddr,
-}
+use rand::SeedableRng;
+use rand_isaac::IsaacRng;
 
-impl Network {
-    pub fn send<P>(&self, packet: P)
-    where
-        P: 'static + Packet,
-    {
-        self.send_boxed(Box::new(packet));
-    }
+pub struct NetworkAddress(pub SocketAddr);
 
-    pub fn send_boxed(&self, packet: Box<dyn Packet>) {
-        let _ = self.tx.send(ServerToWorkerMessage::Dispatch { packet });
-    }
-}
-
-impl Component for Network {
+impl Component for NetworkAddress {
     type Storage = VecStorage<Self>;
 }
 
-#[derive(Debug)]
-pub enum AuthenticationResult {
-    Success,
-    Failure,
-    Timeout,
+#[derive(Component)]
+#[storage(VecStorage)]
+pub struct ConnectionIsaac {
+    pub encoding: IsaacRng,
+    pub decoding: IsaacRng
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub enum ServerToWorkerMessage {
-    Authenticated(AuthenticationResult),
-    Dispatch {
-        #[derivative(Debug = "ignore")]
-        packet: Box<dyn Packet>,
-    },
-}
-
-#[derive(Debug)]
-pub enum WorkerToServerMessage {
-    Disconnect { reason: String },
+impl ConnectionIsaac {
+    pub fn new(decoding_seed: [u8; 32], encoding_seed: [u8; 32]) -> Self {
+        Self {
+            decoding: IsaacRng::from_seed(decoding_seed),
+            encoding: IsaacRng::from_seed(encoding_seed)
+        }
+    }
 }

@@ -1,7 +1,7 @@
 use amethyst::{
     core::{bundle::SystemBundle, SystemDesc, Named},
     ecs::{
-        DispatcherBuilder, Entities, Entity, Read, ReadStorage, System, SystemData, World, Write,
+        DispatcherBuilder, Entities, Entity, Read, ReadExpect, ReadStorage, System, SystemData, World, Write,
         WriteStorage, LazyUpdate
     },
     network::simulation::{NetworkSimulationEvent, TransportResource},
@@ -21,6 +21,7 @@ use std::collections::VecDeque;
 use std::net::SocketAddr;
 use ahash::AHashMap;
 use bytes::{Buf, BufMut, BytesMut};
+use mithril_server_types::auth::Authenticator;
 
 #[derive(Debug)]
 pub struct MithrilNetworkBundle;
@@ -279,11 +280,12 @@ struct MithrilHandshakeSystem {
 impl<'a> System<'a> for MithrilHandshakeSystem {
     type SystemData = (
         Read<'a, EventChannel<PacketEvent>>,
+        ReadExpect<'a, Authenticator>,
         Write<'a, MithrilTransportResource>,
         Read<'a, LazyUpdate>,
     );
 
-    fn run(&mut self, (channel, mut net, lazy): Self::SystemData) {
+    fn run(&mut self, (channel, auth, mut net, lazy): Self::SystemData) {
         for event in channel.read(&mut self.reader) {
             let (entity, packet) = match event {
                 PacketEvent::Handshake(entity, packet) => (*entity, packet),
@@ -294,7 +296,20 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                 log::info!("First handshake packet received");
                 net.send_raw(entity, HandshakeExchangeKey::default());
             } else if let Ok(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>() {
-                log::info!("Second handshake packet received");
+                let authenticated = match auth.authenticate(attempt.username.clone(), attempt.password.clone()) {
+                    Ok(result) => result,
+                    Err(cause) => {
+                        log::error!("'{}' authentication failed; {}", attempt.username, cause);
+                        net.send_raw(entity, HandshakeConnectResponse(LoginResponse::SessionBad));
+                        continue;
+                    }
+                };
+
+                if !authenticated {
+                    net.send_raw(entity, HandshakeConnectResponse(LoginResponse::InvalidCredentials));
+                    continue;
+                }
+
                 net.send_raw(entity, HandshakeConnectResponse(LoginResponse::Success));
 
                 let decoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
