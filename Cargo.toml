@@ -9,5 +9,8 @@ members = [
     "core/fs",
 
     "server",
-    "server/net"
+    "server/net",
+    "server/player",
+    "server/types",
+    "server/jaggrab"
 ]

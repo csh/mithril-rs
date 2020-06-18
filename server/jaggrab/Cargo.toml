@@ -1,0 +1,32 @@
+[package]
+name = "mithril-jaggrab"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[[bin]]
+path = "src/main.rs"
+name = "jaggrab-server"
+required-features = ["standalone"]
+
+[features]
+default = ["standalone"]
+standalone = ["rayon", "simple_logger"]
+
+[dependencies]
+mithril-core = { path = "../../core"}
+anyhow = "1.0"
+log = "0.4"
+
+[dependencies.simple_logger]
+version = "1.6"
+optional = true
+
+[dependencies.rayon]
+version = "1.3"
+optional = true
+
+[dependencies.amethyst]
+version = "0.15"
+default-features = false
+optional = true
