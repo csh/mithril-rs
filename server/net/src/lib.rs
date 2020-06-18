@@ -16,7 +16,7 @@ use mithril_core::net::{
         LoginResponse,
     }
 };
-use mithril_server_types::{ConnectionIsaac, NetworkAddress};
+use mithril_server_types::{ConnectionIsaac, NetworkAddress, NewPlayer};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use ahash::AHashMap;
@@ -316,6 +316,7 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                 let encoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
                 lazy.insert(entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
                 lazy.insert(entity, Named::new(attempt.username.clone()));
+                lazy.insert(entity, NewPlayer);
             }
         }
     }
