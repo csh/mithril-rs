@@ -6,7 +6,7 @@ use crate::CollisionDetector;
 use pathfinding::prelude::{absdiff, astar};
 
 #[derive(Debug, Default)]
-pub struct PreviousPosition(pub Position);
+pub struct PreviousPosition(pub Position, pub Option<Position>);
 
 impl PartialEq<Position> for PreviousPosition {
     fn eq(&self, other: &Position) -> bool {

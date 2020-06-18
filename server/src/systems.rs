@@ -12,10 +12,10 @@ pub fn build_dispatcher<'a, 'b>() -> Dispatcher<'a, 'b> {
             "player_sync",
             &["poll_clients", "pathfinder"],
         )
-        .with(
+        /*.with(
             player::systems::ResetPreviousPosition,
             "reset_previous",
             &["player_sync"],
-        )
+        )*/
         .build()
 }
