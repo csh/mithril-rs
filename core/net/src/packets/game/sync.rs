@@ -46,17 +46,17 @@ impl SyncBlock for Animation {
 
 #[derive(Debug)]
 pub struct Item {
-    id: u16,
+    pub id: u16,
 }
 
 #[derive(Debug)]
 pub struct Equipment {
-    chest: Option<Item>,
-    shield: Option<Item>,
-    legs: Option<Item>,
-    hat: Option<Item>,
-    hands: Option<Item>,
-    feet: Option<Item>,
+    pub chest: Option<Item>,
+    pub shield: Option<Item>,
+    pub legs: Option<Item>,
+    pub hat: Option<Item>,
+    pub hands: Option<Item>,
+    pub feet: Option<Item>,
 }
 
 impl Default for Equipment {
@@ -87,12 +87,12 @@ pub enum AppearanceType {
 
 #[derive(Debug)]
 pub struct Appearance {
-    name: String,
-    gender: u8,
-    combat_level: u8,
-    skill_level: u16,
-    appearance_type: AppearanceType,
-    colours: Vec<u8>, // Enums are cool I tell you!
+    pub name: String,
+    pub gender: u8,
+    pub combat_level: u8,
+    pub skill_level: u16,
+    pub appearance_type: AppearanceType,
+    pub colours: Vec<u8>, // Enums are cool I tell you!
 }
 
 impl SyncBlock for Appearance {
@@ -386,6 +386,17 @@ pub struct AddPlayer {
     dy: u8,
 }
 
+impl AddPlayer {
+    pub fn new(id: u16, player_position: Position, new_player_position: Position) -> AddPlayer {
+        let (dx, dy) = new_player_position - player_position;
+        AddPlayer {
+            id,
+            dx: dx as u8,
+            dy: dy as u8,    
+        }
+    }
+}
+
 impl SyncBlockType {
     fn to_id(&self) -> u16 {
         match self {
@@ -535,7 +546,7 @@ impl PlayerSynchronization {
                         writer.put_bits(1, 1);
                         writer.put_bits(2, 3);
                         writer.put_bits(2, destination.get_plane() as _);
-                        writer.put_bits(1, if *changed_region { 0 } else { 1 });
+                        writer.put_bits(1, if *changed_region { 1 } else { 0 });
                         writer.put_bits(1, if blocks.has_updates() { 1 } else { 0 });
                         let (x, y) = destination.get_relative(*current);
                         writer.put_bits(7, y as _);
@@ -633,7 +644,7 @@ mod tests {
                 Some(EntityMovement::Teleport{
                     destination: Position::default(),
                     current: Position::default(),
-                    changed_region: true,
+                    changed_region: false,
                 }),
                 my_blocks,
             )),

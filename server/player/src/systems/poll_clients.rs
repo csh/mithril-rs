@@ -3,8 +3,9 @@ use mithril_core::net::packets::{IdAssignment, SwitchTabInterface};
 use mithril_core::pos::Position;
 use mithril_server_net::{ListenerToServerMessage, NetworkManager, ServerToListenerMessage};
 use mithril_server_types::{
-    AuthenticationResult, Name, Network, Pathfinder, ServerToWorkerMessage,
+    AuthenticationResult, Name, Network, Pathfinder, ServerToWorkerMessage, VisiblePlayers
 };
+use indexmap::set::IndexSet;
 use parking_lot::Mutex;
 use specs::prelude::*;
 
@@ -18,6 +19,7 @@ impl<'a> System<'a> for PollNewClients {
         WriteStorage<'a, Network>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Pathfinder>,
+        WriteStorage<'a, VisiblePlayers>
     );
 
     fn run(
@@ -29,6 +31,7 @@ impl<'a> System<'a> for PollNewClients {
             mut network_storage,
             mut pos_storage,
             mut queue_storage,
+            mut visible_players,
         ): Self::SystemData,
     ) {
         while let Ok(msg) = network_manager.rx.lock().try_recv() {
@@ -58,7 +61,7 @@ impl<'a> System<'a> for PollNewClients {
 
                     network.send(IdAssignment {
                         is_member: true,
-                        entity_id: 1,
+                        entity_id: new_client.entity.id() as u16,
                     });
 
                     // TODO: Move this definition elsewhere. For now, enjoy the fact the client displays more than "Connection lost" :)
@@ -97,6 +100,49 @@ impl<'a> System<'a> for PollNewClients {
                         message: String::from("Mithril:tradereq:"),
                     });
 
+                    {
+                        use mithril_core::net::packets::*;
+
+                        network.send(ClearRegion {
+                            player: Position::default(),
+                            region: Position::default()
+                        });
+
+                        network.send(RegionChange {
+                            position: Position::default()
+                        });
+
+                        //network.send(SetUpdatedRegion {});
+
+                        let mut equipment = Equipment::default();
+                        equipment.hat = Some(Item {id: 1042});
+                        equipment.chest = Some(Item{ id: 1121});
+                        equipment.legs = Some(Item {id: 1071});
+
+                        let appearance = Appearance {
+                            name: _username.clone(),
+                            gender: 0,
+                            appearance_type: AppearanceType::Player(equipment, vec![0, 10, 18, 26, 33, 36, 42]),
+                            combat_level: 69,
+                            skill_level: 420,
+                            colours: vec![0,0,0,0,0]
+                        };
+
+                        let mut blocks = SyncBlocks::default();
+                        blocks.add_block(Box::new(appearance));
+
+                        network.send(PlayerSynchronization {
+                            player_update: Some(PlayerUpdate::Update(
+                                Some(EntityMovement::Teleport {
+                                    changed_region: true,
+                                    current: Position::default(),
+                                    destination: Position::default()
+                                })
+                            , blocks)),
+                            other_players: vec![]
+                        })
+                    }
+
                     named_storage
                         .insert(new_client.entity, Name(_username))
                         .unwrap();
@@ -107,6 +153,7 @@ impl<'a> System<'a> for PollNewClients {
                     queue_storage
                         .insert(new_client.entity, Pathfinder::default())
                         .unwrap();
+                    visible_players.insert(new_client.entity, VisiblePlayers(IndexSet::default())).unwrap();
                 }
             }
         }

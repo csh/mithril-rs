@@ -1,8 +1,8 @@
 use specs::{Component, VecStorage};
 use std::fmt::Debug;
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Direction {
     None = -1,
     NorthWest = 0,
@@ -35,6 +35,14 @@ impl Add<(i16, i16)> for Position {
 
     fn add(self, rhs: (i16, i16)) -> Self::Output {
         Position::new_with_height(self.x + rhs.0, self.y + rhs.1, self.plane).expect("valid")
+    }
+}
+
+impl Sub for Position {
+    type Output = (i16, i16);
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        (rhs.x - self.x, rhs.y - self.y)
     }
 }
 
