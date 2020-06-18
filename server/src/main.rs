@@ -16,6 +16,18 @@ use mithril::{
     },
 };
 
+#[cfg(feature = "jaggrab")]
+fn add_jaggrab_bundle<'a, 'b>(game_data: GameDataBuilder<'a, 'b>) -> Result<GameDataBuilder<'a, 'b>> {
+    let listener = TcpListener::bind("0.0.0.0:43595")?;
+    listener.set_nonblocking(true)?;
+    game_data.with_bundle(mithril_jaggrab::JaggrabServerBundle::new(Some(listener)))
+}
+
+#[cfg(not(feature = "jaggrab"))]
+fn add_jaggrab_bundle<'a, 'b>(game_data: GameDataBuilder<'a, 'b>) -> Result<GameDataBuilder<'a, 'b>> {
+    Ok(game_data)
+}
+
 fn main() -> Result<()> {
     amethyst::start_logger(Default::default());
 
@@ -24,10 +36,12 @@ fn main() -> Result<()> {
 
     let assets_dir = application_dir("../cache")?;
 
-    let game_data = GameDataBuilder::default()
+    let mut game_data = GameDataBuilder::default()
         .with_bundle(TcpNetworkBundle::new(Some(listener), 4096))?
         .with_bundle(MithrilNetworkBundle)?
         .with_bundle(PlayerEntityBundle)?;
+
+    game_data = add_jaggrab_bundle(game_data)?;
 
     let mut game = Application::build(assets_dir, LoadingState::default())?
         .with_fixed_step_length(Duration::from_millis(600))

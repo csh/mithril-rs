@@ -8,6 +8,8 @@ pub use packet::{
     Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType,
 };
 
+#[cfg(feature = "jaggrab")]
+pub mod jaggrab;
 mod codec;
 mod packet;
 
