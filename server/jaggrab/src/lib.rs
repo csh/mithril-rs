@@ -1,5 +1,5 @@
-use std::net::TcpStream;
 use std::io::prelude::*;
+use std::net::TcpStream;
 
 use mithril_core::{fs::CacheFileSystem, net::jaggrab::parse_request};
 
@@ -14,10 +14,7 @@ mod standalone;
 #[cfg(feature = "standalone")]
 pub use standalone::*;
 
-pub(crate) fn serve_request(
-    mut stream: TcpStream,
-    cache: &CacheFileSystem,
-) -> anyhow::Result<()> {
+pub(crate) fn serve_request(mut stream: TcpStream, cache: &CacheFileSystem) -> anyhow::Result<()> {
     let mut buf = [0; 32];
     let read = stream.read(&mut buf)?;
     let file = parse_request(&mut buf[..read])?;

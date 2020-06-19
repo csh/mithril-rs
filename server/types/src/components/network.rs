@@ -15,14 +15,14 @@ impl Component for NetworkAddress {
 #[storage(VecStorage)]
 pub struct ConnectionIsaac {
     pub encoding: IsaacRng,
-    pub decoding: IsaacRng
+    pub decoding: IsaacRng,
 }
 
 impl ConnectionIsaac {
     pub fn new(decoding_seed: [u8; 32], encoding_seed: [u8; 32]) -> Self {
         Self {
             decoding: IsaacRng::from_seed(decoding_seed),
-            encoding: IsaacRng::from_seed(encoding_seed)
+            encoding: IsaacRng::from_seed(encoding_seed),
         }
     }
 }

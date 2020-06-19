@@ -26,9 +26,9 @@ impl<'a, 'b> SystemBundle<'a, 'b> for PlayerEntityBundle {
         dispatcher.add(
             movement::PlayerSyncSystemDesc::default().build(world),
             "player_sync",
-            &["entity_pathfinding"]
+            &["entity_pathfinding"],
         );
-        
+
         Ok(())
     }
 }

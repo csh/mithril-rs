@@ -67,9 +67,9 @@ impl Default for Equipment {
             legs: None,
             hat: None,
             hands: None,
-            feet: None    
-        }    
-    }    
+            feet: None,
+        }
+    }
 }
 
 impl Equipment {
@@ -392,7 +392,7 @@ impl AddPlayer {
         AddPlayer {
             id,
             dx: dx as u8,
-            dy: dy as u8,    
+            dy: dy as u8,
         }
     }
 }
@@ -486,13 +486,17 @@ impl Packet for PlayerSynchronization {
                 writer.put_bits(1, 0); // No updates
             }
 
-            let count = self.other_players.iter().filter(|update| {
-                if let PlayerUpdate::Update(_, _) = update {
-                    true
-                } else {
-                    false    
-                }
-            }).count();
+            let count = self
+                .other_players
+                .iter()
+                .filter(|update| {
+                    if let PlayerUpdate::Update(_, _) = update {
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .count();
 
             writer.put_bits(8, count as u32);
             self.other_players
@@ -585,18 +589,32 @@ impl PlayerSynchronization {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_player_sync() {
-        const PACKET: [u8; 146] = [0xE2,0xC1,0xA8,0x0F,0xB0,0x00,0x70,0x03,0xFF,0x80,0x14,0x73,0x65,0x6C,0x6C,0x69,0x6E,0x67,0x20,0x67,0x66,0x20,0x31,0x30,0x6B,0x0A,0xCD,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x12,0x00,0x01,0x1A,0x01,0x24,0x01,0x00,0x01,0x21,0x01,0x2A,0x01,0x0A,0x00,0x00,0x00,0x00,0x00,0x03,0x28,0x03,0x37,0x03,0x33,0x03,0x34,0x03,0x35,0x03,0x36,0x03,0x38,0x09,0xF9,0xE6,0x4D,0xEA,0xA3,0x58,0xF3,0x45,0x00,0x00,0x14,0x73,0x65,0x6C,0x6C,0x69,0x6E,0x67,0x20,0x67,0x66,0x20,0x31,0x30,0x6B,0x0A,0xCD,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x12,0x00,0x01,0x1A,0x01,0x24,0x01,0x00,0x01,0x21,0x01,0x2A,0x01,0x0A,0x00,0x00,0x00,0x00,0x00,0x03,0x28,0x03,0x37,0x03,0x33,0x03,0x34,0x03,0x35,0x03,0x36,0x03,0x38,0x09,0xF9,0xE6,0x4D,0xEA,0xA3,0x58,0xF3,0x45,0x00,0x00];
+        const PACKET: [u8; 146] = [
+            0xE2, 0xC1, 0xA8, 0x0F, 0xB0, 0x00, 0x70, 0x03, 0xFF, 0x80, 0x14, 0x73, 0x65, 0x6C,
+            0x6C, 0x69, 0x6E, 0x67, 0x20, 0x67, 0x66, 0x20, 0x31, 0x30, 0x6B, 0x0A, 0xCD, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x12, 0x00, 0x01, 0x1A, 0x01, 0x24, 0x01, 0x00,
+            0x01, 0x21, 0x01, 0x2A, 0x01, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x28, 0x03,
+            0x37, 0x03, 0x33, 0x03, 0x34, 0x03, 0x35, 0x03, 0x36, 0x03, 0x38, 0x09, 0xF9, 0xE6,
+            0x4D, 0xEA, 0xA3, 0x58, 0xF3, 0x45, 0x00, 0x00, 0x14, 0x73, 0x65, 0x6C, 0x6C, 0x69,
+            0x6E, 0x67, 0x20, 0x67, 0x66, 0x20, 0x31, 0x30, 0x6B, 0x0A, 0xCD, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x01, 0x12, 0x00, 0x01, 0x1A, 0x01, 0x24, 0x01, 0x00, 0x01, 0x21,
+            0x01, 0x2A, 0x01, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x28, 0x03, 0x37, 0x03,
+            0x33, 0x03, 0x34, 0x03, 0x35, 0x03, 0x36, 0x03, 0x38, 0x09, 0xF9, 0xE6, 0x4D, 0xEA,
+            0xA3, 0x58, 0xF3, 0x45, 0x00, 0x00,
+        ];
         let mut buf = BytesMut::new();
 
-        let force_chat = Box::new(ForceChat {message: String::from("selling gf 10k")});
+        let force_chat = Box::new(ForceChat {
+            message: String::from("selling gf 10k"),
+        });
         let appearance = Box::new(Appearance {
             appearance_type: AppearanceType::Player(
-                Equipment::default(), 
-                vec![0, 10, 18, 26, 33, 36, 42]
-            ),    
+                Equipment::default(),
+                vec![0, 10, 18, 26, 33, 36, 42],
+            ),
             name: String::from("DarkSeraphim"),
             gender: 0x0,
             combat_level: 69,
@@ -609,17 +627,17 @@ mod tests {
 
         let remove_player = PlayerUpdate::Remove();
         let move_player = PlayerUpdate::Update(
-            Some(EntityMovement::Move{
-                direction: 4,
-            }),
+            Some(EntityMovement::Move { direction: 4 }),
             SyncBlocks::default(),
         );
 
-        let force_chat = Box::new(ForceChat {message: String::from("selling gf 10k")});
+        let force_chat = Box::new(ForceChat {
+            message: String::from("selling gf 10k"),
+        });
         let appearance = Box::new(Appearance {
             appearance_type: AppearanceType::Player(
                 Equipment::default(),
-                vec![0, 10, 18, 26, 33, 36, 42]
+                vec![0, 10, 18, 26, 33, 36, 42],
             ),
             name: String::from("DarkSeraphim"),
             gender: 0x0,
@@ -634,27 +652,25 @@ mod tests {
             AddPlayer {
                 id: 1,
                 dx: 0,
-                dy: 0
+                dy: 0,
             },
-            add_blocks
+            add_blocks,
         );
 
         let sync_packet = PlayerSynchronization {
             player_update: Some(PlayerUpdate::Update(
-                Some(EntityMovement::Teleport{
+                Some(EntityMovement::Teleport {
                     destination: Position::default(),
                     current: Position::default(),
                     changed_region: false,
                 }),
                 my_blocks,
             )),
-            other_players: vec![
-                remove_player,
-                move_player,
-                add_player,
-            ]
+            other_players: vec![remove_player, move_player, add_player],
         };
-        sync_packet.try_write(&mut buf).expect("Failed to write packet");
+        sync_packet
+            .try_write(&mut buf)
+            .expect("Failed to write packet");
         assert_eq!(&buf[..], &PACKET[..]);
-    }    
+    }
 }

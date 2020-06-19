@@ -40,7 +40,7 @@ impl Default for ObjectDefinition {
             casts_shadow: true,
             hug_terrain: false,
             low_priority_shading: true,
-            wall: false
+            wall: false,
         }
     }
 }
