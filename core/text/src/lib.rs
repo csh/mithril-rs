@@ -1,3 +1,5 @@
+use ahash::AHashMap;
+
 const FREQUENCY_ORDERED_CHARS: [char; 61] = [
     ' ', 'e', 't', 'a', 'o', 'i', 'h', 'n', 's', 'r', 'd', 'l', 'u', 'm', 'w', 'c', 'y', 'f', 'g',
     'p', 'b', 'v', 'k', 'x', 'j', 'q', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' ',
@@ -68,6 +70,57 @@ pub fn decompress(input: &[u8], len: usize) -> String {
     out.iter().collect::<String>()
 }
 
+pub fn compress(input: &String) -> Vec<u8> {
+    let mut out = Vec::with_capacity(input.len());
+    let table = build_pos_table();
+
+    let input = input.to_lowercase();
+    let mut carry_box = None;
+    for c in input.chars() {
+        let mut table_pos = *table.get(&c).unwrap_or(&0);
+        if table_pos > 12 {
+            table_pos += 195;
+        }
+        dbg!(table_pos);
+        dbg!(carry_box);
+        match carry_box {
+            None => {
+                if table_pos < 13 {
+                    carry_box = Some(table_pos);
+                } else {
+                    out.push(table_pos as u8);
+                } 
+            }
+            Some(carry) if table_pos < 13 => {
+                out.push(((carry << 4) + table_pos) as u8);
+                carry_box = None;
+            }
+            Some(carry) => {
+                out.push(((carry << 4) + (table_pos >> 4)) as u8);
+                carry_box = Some(table_pos & 0xF);
+
+            }
+        }
+    }
+
+    if let Some(carry) = carry_box {
+        out.push((carry << 4) as u8);
+    }
+
+    out
+}
+
+// TODO: move to lazy static?
+fn build_pos_table() -> AHashMap<char, usize> {
+    (0..FREQUENCY_ORDERED_CHARS.len()).map(|i| (i, FREQUENCY_ORDERED_CHARS[i]))
+        .fold(
+             AHashMap::with_capacity(FREQUENCY_ORDERED_CHARS.len() * 2),
+             |mut table, (idx, c)| {
+                 table.entry(c).or_insert(idx as usize);
+                 table
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,6 +129,20 @@ mod tests {
     pub fn test_decompress() {
         const HELLO_WORLD: [u8; 8] = [0x61, 0xBB, 0x4E, 0xC0, 0xD1, 0x49, 0xBA, 0xE9];
         assert_eq!(decompress(&HELLO_WORLD, 8), "hello, world!");
+    }
+
+    #[test]
+    pub fn test_compress() {
+        const HELLO_WORLD: [u8; 8] = [0x61, 0xBB, 0x4E, 0xC0, 0xD1, 0x49, 0xBA, 0xE9];
+        assert_eq!(compress(&"hello, world!".to_owned()), HELLO_WORLD);
+    }
+
+    #[test]
+    pub fn test_recompress() {
+        let message = "hello, world!".to_owned();
+        let compressed = compress(&message);
+        let decompressed = decompress(&compressed[..], compressed.len());
+        assert_eq!(decompressed, message);
     }
 
     #[test]
