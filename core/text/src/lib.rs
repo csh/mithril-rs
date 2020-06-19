@@ -89,7 +89,7 @@ pub fn compress(input: &String) -> Vec<u8> {
                     carry_box = Some(table_pos);
                 } else {
                     out.push(table_pos as u8);
-                } 
+                }
             }
             Some(carry) if table_pos < 13 => {
                 out.push(((carry << 4) + table_pos) as u8);
@@ -98,7 +98,6 @@ pub fn compress(input: &String) -> Vec<u8> {
             Some(carry) => {
                 out.push(((carry << 4) + (table_pos >> 4)) as u8);
                 carry_box = Some(table_pos & 0xF);
-
             }
         }
     }
@@ -112,13 +111,15 @@ pub fn compress(input: &String) -> Vec<u8> {
 
 // TODO: move to lazy static?
 fn build_pos_table() -> AHashMap<char, usize> {
-    (0..FREQUENCY_ORDERED_CHARS.len()).map(|i| (i, FREQUENCY_ORDERED_CHARS[i]))
+    (0..FREQUENCY_ORDERED_CHARS.len())
+        .map(|i| (i, FREQUENCY_ORDERED_CHARS[i]))
         .fold(
-             AHashMap::with_capacity(FREQUENCY_ORDERED_CHARS.len() * 2),
-             |mut table, (idx, c)| {
-                 table.entry(c).or_insert(idx as usize);
-                 table
-        })
+            AHashMap::with_capacity(FREQUENCY_ORDERED_CHARS.len() * 2),
+            |mut table, (idx, c)| {
+                table.entry(c).or_insert(idx as usize);
+                table
+            },
+        )
 }
 
 #[cfg(test)]

@@ -1,7 +1,10 @@
-use amethyst::{core::{Named, SystemDesc}, ecs::prelude::*};
+use amethyst::{
+    core::{Named, SystemDesc},
+    ecs::prelude::*,
+};
 
 use mithril_core::{
-    net::packets::{IdAssignment, SwitchTabInterface, UpdateSkill, ServerMessage},
+    net::packets::{IdAssignment, ServerMessage, SwitchTabInterface, UpdateSkill},
     pos::Position,
 };
 use mithril_server_net::MithrilTransportResource;
@@ -25,7 +28,7 @@ impl<'a> System<'a> for SendInitialPackets {
         Read<'a, LazyUpdate>,
         Write<'a, MithrilTransportResource>,
         ReadStorage<'a, NewPlayer>,
-        ReadStorage<'a, Named>
+        ReadStorage<'a, Named>,
     );
 
     fn run(&mut self, (entities, lazy, mut transport, new_player, named): Self::SystemData) {
@@ -78,49 +81,65 @@ impl<'a> System<'a> for SendInitialPackets {
                 );
             }
 
-            transport.send(player, ServerMessage {
-                message: "Mithril:tradereq:".to_owned()
-            });
+            transport.send(
+                player,
+                ServerMessage {
+                    message: "Mithril:tradereq:".to_owned(),
+                },
+            );
 
             {
                 use mithril_core::net::packets::*;
 
-                transport.send(player, ClearRegion {
-                    player: Position::default(),
-                    region: Position::default()
-                });
+                transport.send(
+                    player,
+                    ClearRegion {
+                        player: Position::default(),
+                        region: Position::default(),
+                    },
+                );
 
-                transport.send(player, RegionChange {
-                    position: Position::default()
-                });
+                transport.send(
+                    player,
+                    RegionChange {
+                        position: Position::default(),
+                    },
+                );
 
                 let mut equipment = Equipment::default();
-                equipment.hat = Some(Item {id: 1042});
-                equipment.chest = Some(Item{ id: 1121});
-                equipment.legs = Some(Item {id: 1071});
+                equipment.hat = Some(Item { id: 1042 });
+                equipment.chest = Some(Item { id: 1121 });
+                equipment.legs = Some(Item { id: 1071 });
 
                 let appearance = Appearance {
                     name: named.name.to_string(),
                     gender: 0,
-                    appearance_type: AppearanceType::Player(equipment, vec![0, 10, 18, 26, 33, 36, 42]),
+                    appearance_type: AppearanceType::Player(
+                        equipment,
+                        vec![0, 10, 18, 26, 33, 36, 42],
+                    ),
                     combat_level: 69,
                     skill_level: 420,
-                    colours: vec![0,0,0,0,0]
+                    colours: vec![0, 0, 0, 0, 0],
                 };
 
                 let mut blocks = SyncBlocks::default();
                 blocks.add_block(Box::new(appearance));
 
-                transport.send(player, PlayerSynchronization {
-                    player_update: Some(PlayerUpdate::Update(
-                        Some(EntityMovement::Teleport {
-                            changed_region: true,
-                            current: Position::default(),
-                            destination: Position::default()
-                        })
-                    , blocks)),
-                    other_players: vec![]
-                })
+                transport.send(
+                    player,
+                    PlayerSynchronization {
+                        player_update: Some(PlayerUpdate::Update(
+                            Some(EntityMovement::Teleport {
+                                changed_region: true,
+                                current: Position::default(),
+                                destination: Position::default(),
+                            }),
+                            blocks,
+                        )),
+                        other_players: vec![],
+                    },
+                )
             }
 
             lazy.insert(player, Position::default());

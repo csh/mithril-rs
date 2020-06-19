@@ -5,11 +5,10 @@ use std::sync::Arc;
 fn main() {
     simple_logger::init().unwrap();
 
-    let cache = CacheFileSystem::open("cache")
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to open cache; {}", e);
-            std::process::exit(1);
-        });
+    let cache = CacheFileSystem::open("cache").unwrap_or_else(|e| {
+        eprintln!("Failed to open cache; {}", e);
+        std::process::exit(1);
+    });
 
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)

@@ -1,25 +1,23 @@
-use std::net::{TcpListener, TcpStream};
 use std::collections::VecDeque;
 use std::io;
+use std::net::{TcpListener, TcpStream};
 use std::ops::DerefMut;
 
 use amethyst::{
     core::SystemBundle,
-    ecs::{System, World, DispatcherBuilder, ReadExpect, Write},
-    Result
+    ecs::{DispatcherBuilder, ReadExpect, System, World, Write},
+    Result,
 };
 use mithril_core::fs::CacheFileSystem;
 
 #[derive(Debug)]
 pub struct JaggrabServerBundle {
-    listener: Option<TcpListener>
+    listener: Option<TcpListener>,
 }
 
 impl JaggrabServerBundle {
     pub fn new(listener: Option<TcpListener>) -> Self {
-        Self {
-            listener
-        }
+        Self { listener }
     }
 }
 
@@ -29,7 +27,11 @@ impl<'a, 'b> SystemBundle<'a, 'b> for JaggrabServerBundle {
         world.insert(server_resource);
 
         builder.add(JaggrabConnectionSystem::default(), "jaggrab_connect", &[]);
-        builder.add(JaggrabSendingSystem::default(), "jaggrab", &["jaggrab_connect"]);
+        builder.add(
+            JaggrabSendingSystem::default(),
+            "jaggrab",
+            &["jaggrab_connect"],
+        );
 
         log::info!("Listening for JAGGRAB requests");
         Ok(())
@@ -39,14 +41,14 @@ impl<'a, 'b> SystemBundle<'a, 'b> for JaggrabServerBundle {
 #[derive(Default)]
 struct JaggrabServerResource {
     listener: Option<TcpListener>,
-    streams: VecDeque<TcpStream>
+    streams: VecDeque<TcpStream>,
 }
 
 impl JaggrabServerResource {
     pub fn new(listener: Option<TcpListener>) -> Self {
         Self {
             listener,
-            streams: VecDeque::with_capacity(64)
+            streams: VecDeque::with_capacity(64),
         }
     }
 }
@@ -76,7 +78,7 @@ impl<'a> System<'a> for JaggrabConnectionSystem {
                 }
             }
         }
-    }    
+    }
 }
 
 #[derive(Default, Debug)]
@@ -85,9 +87,9 @@ struct JaggrabSendingSystem;
 impl<'a> System<'a> for JaggrabSendingSystem {
     type SystemData = (
         Write<'a, JaggrabServerResource>,
-        ReadExpect<'a, CacheFileSystem>
+        ReadExpect<'a, CacheFileSystem>,
     );
-    
+
     fn run(&mut self, (mut net, cache): Self::SystemData) {
         while let Some(stream) = net.streams.pop_front() {
             if let Err(cause) = crate::serve_request(stream, &cache) {

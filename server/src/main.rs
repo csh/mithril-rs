@@ -2,29 +2,32 @@ use std::net::TcpListener;
 use std::time::Duration;
 
 use amethyst::{
-    network::simulation::tcp::TcpNetworkBundle,
-    prelude::*, utils::application_dir, Result,
+    network::simulation::tcp::TcpNetworkBundle, prelude::*, utils::application_dir, Result,
 };
 
 use mithril::{
     core::fs::CacheFileSystem,
-    player::PlayerEntityBundle,
     net::MithrilNetworkBundle,
+    player::PlayerEntityBundle,
     types::{
+        auth::{AlwaysAllowStrategy, Authenticator},
         CollisionDetector,
-        auth::{AlwaysAllowStrategy, Authenticator}
     },
 };
 
 #[cfg(feature = "jaggrab")]
-fn add_jaggrab_bundle<'a, 'b>(game_data: GameDataBuilder<'a, 'b>) -> Result<GameDataBuilder<'a, 'b>> {
+fn add_jaggrab_bundle<'a, 'b>(
+    game_data: GameDataBuilder<'a, 'b>,
+) -> Result<GameDataBuilder<'a, 'b>> {
     let listener = TcpListener::bind("0.0.0.0:43595")?;
     listener.set_nonblocking(true)?;
     game_data.with_bundle(mithril_jaggrab::JaggrabServerBundle::new(Some(listener)))
 }
 
 #[cfg(not(feature = "jaggrab"))]
-fn add_jaggrab_bundle<'a, 'b>(game_data: GameDataBuilder<'a, 'b>) -> Result<GameDataBuilder<'a, 'b>> {
+fn add_jaggrab_bundle<'a, 'b>(
+    game_data: GameDataBuilder<'a, 'b>,
+) -> Result<GameDataBuilder<'a, 'b>> {
     Ok(game_data)
 }
 

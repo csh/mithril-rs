@@ -7,11 +7,9 @@ use amethyst::{
 
 use ahash::AHashMap;
 use mithril_core::{
-    net::{
-        packets::{
-            AddPlayer, Appearance, AppearanceType, EntityMovement, Equipment, Item,
-            NpcSynchronization, PlayerSynchronization, PlayerUpdate, SyncBlocks, Walk,
-        },
+    net::packets::{
+        AddPlayer, Appearance, AppearanceType, EntityMovement, Equipment, Item, NpcSynchronization,
+        PlayerSynchronization, PlayerUpdate, SyncBlocks, Walk,
     },
     pos::{Direction, Position},
 };

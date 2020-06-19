@@ -1,27 +1,28 @@
 use amethyst::{
-    core::{bundle::SystemBundle, SystemDesc, Named},
+    core::{bundle::SystemBundle, Named, SystemDesc},
     ecs::{
-        DispatcherBuilder, Entities, Entity, Read, ReadExpect, ReadStorage, System, SystemData, World, Write,
-        WriteStorage, LazyUpdate
+        DispatcherBuilder, Entities, Entity, LazyUpdate, Read, ReadExpect, ReadStorage, System,
+        SystemData, World, Write, WriteStorage,
     },
     network::simulation::{NetworkSimulationEvent, TransportResource},
     shrev::{EventChannel, ReaderId},
     Result,
 };
 
+use ahash::AHashMap;
+use bytes::{Buf, BufMut, BytesMut};
 use mithril_core::net::{
-    Packet, self,
+    self,
     packets::{
         HandshakeAttemptConnect, HandshakeConnectResponse, HandshakeExchangeKey, HandshakeHello,
         LoginResponse,
-    }
+    },
+    Packet,
 };
+use mithril_server_types::auth::Authenticator;
 use mithril_server_types::{ConnectionIsaac, NetworkAddress, NewPlayer};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
-use ahash::AHashMap;
-use bytes::{Buf, BufMut, BytesMut};
-use mithril_server_types::auth::Authenticator;
 
 #[derive(Debug)]
 pub struct MithrilNetworkBundle;
@@ -115,7 +116,9 @@ impl<'a> System<'a> for MithrilEntityManagementSystem {
                         log::info!("Disconnected: {}", addr);
                     }
                 }
-                NetworkSimulationEvent::RecvError(e) if e.kind() != std::io::ErrorKind::ConnectionAborted => {
+                NetworkSimulationEvent::RecvError(e)
+                    if e.kind() != std::io::ErrorKind::ConnectionAborted =>
+                {
                     log::error!("Recv Error: {:?}", e);
                 }
                 _ => {}
@@ -168,9 +171,7 @@ impl<'a> System<'a> for MithrilEncodingSystem {
 
             let mut encoded = bytes::BytesMut::new();
             let encode_result = match event {
-                PacketEvent::Handshake(_, packet) => {
-                    net::encode_packet(None, packet, &mut encoded)
-                }
+                PacketEvent::Handshake(_, packet) => net::encode_packet(None, packet, &mut encoded),
                 PacketEvent::Gameplay(entity, packet) => {
                     if let Some(isaac) = rng.get_mut(entity) {
                         net::encode_packet(Some(&mut isaac.encoding), packet, &mut encoded)
@@ -296,7 +297,9 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                 log::info!("First handshake packet received");
                 net.send_raw(entity, HandshakeExchangeKey::default());
             } else if let Ok(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>() {
-                let authenticated = match auth.authenticate(attempt.username.clone(), attempt.password.clone()) {
+                let authenticated = match auth
+                    .authenticate(attempt.username.clone(), attempt.password.clone())
+                {
                     Ok(result) => result,
                     Err(cause) => {
                         log::error!("'{}' authentication failed; {}", attempt.username, cause);
@@ -306,14 +309,19 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                 };
 
                 if !authenticated {
-                    net.send_raw(entity, HandshakeConnectResponse(LoginResponse::InvalidCredentials));
+                    net.send_raw(
+                        entity,
+                        HandshakeConnectResponse(LoginResponse::InvalidCredentials),
+                    );
                     continue;
                 }
 
                 net.send_raw(entity, HandshakeConnectResponse(LoginResponse::Success));
 
-                let decoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
-                let encoding_seed = prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
+                let decoding_seed =
+                    prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
+                let encoding_seed =
+                    prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
                 lazy.insert(entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
                 lazy.insert(entity, Named::new(attempt.username.clone()));
                 lazy.insert(entity, NewPlayer);

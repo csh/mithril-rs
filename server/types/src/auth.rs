@@ -3,13 +3,13 @@ pub trait AuthenticationStrategy {
 }
 
 pub struct Authenticator {
-    strategy: Box<dyn AuthenticationStrategy + Send + Sync + 'static>
+    strategy: Box<dyn AuthenticationStrategy + Send + Sync + 'static>,
 }
 
 impl Authenticator {
     pub fn new<A: AuthenticationStrategy + Send + Sync + 'static>(strategy: A) -> Self {
         Authenticator {
-            strategy: Box::new(strategy)
+            strategy: Box::new(strategy),
         }
     }
 

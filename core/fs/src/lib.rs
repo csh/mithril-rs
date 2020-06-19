@@ -13,7 +13,7 @@ pub(crate) mod compression;
 pub mod defs;
 
 pub use archive::Archive;
-pub use error::{CacheError, FilePartError, ArchiveError};
+pub use error::{ArchiveError, CacheError, FilePartError};
 
 const INDEX_SIZE: u64 = 6;
 const CHUNK_SIZE: u64 = 512;
@@ -31,7 +31,7 @@ pub struct CacheFileSystem {
 #[derive(Debug)]
 struct CacheIndex {
     index_file: Mmap,
-    len: usize
+    len: usize,
 }
 
 impl CacheIndex {
@@ -51,9 +51,7 @@ impl CacheFileSystem {
 
         for i in 0..5 {
             let path = path.join(format!("main_file_cache.idx{}", i));
-            match File::open(&path)
-                .and_then(|file| unsafe { memmap::Mmap::map(&file) })
-            {
+            match File::open(&path).and_then(|file| unsafe { memmap::Mmap::map(&file) }) {
                 Ok(file) => indices.push(CacheIndex {
                     len: file.len() / INDEX_SIZE as usize,
                     index_file: file,
@@ -63,9 +61,7 @@ impl CacheFileSystem {
         }
 
         let path = path.join("main_file_cache.dat");
-        let cur = match File::open(&path)
-            .and_then(|file| unsafe { memmap::Mmap::map(&file) })
-        {
+        let cur = match File::open(&path).and_then(|file| unsafe { memmap::Mmap::map(&file) }) {
             Ok(file) => file,
             Err(source) => return Err(CacheError::FileMapping { path, source }),
         };
@@ -135,8 +131,7 @@ impl CacheFileSystem {
 
         let mut cursor = Cursor::new(&self.data_file);
         for file_part in 0..num_parts {
-            cursor
-                .seek(SeekFrom::Start(position))?;
+            cursor.seek(SeekFrom::Start(position))?;
 
             let read_file_number = cursor.get_u16();
             let read_file_part = cursor.get_u16();
@@ -154,8 +149,7 @@ impl CacheFileSystem {
             let part_size = std::cmp::min(size as usize - combined_buf.len(), CHUNK_SIZE as usize);
             let mut part_buf = vec![0; part_size];
 
-            let read = cursor
-                .read(&mut part_buf)?;
+            let read = cursor.read(&mut part_buf)?;
 
             if read != part_size {
                 return Err(FilePartError::Length {
@@ -176,11 +170,7 @@ impl CacheFileSystem {
         Ok(combined_buf.freeze())
     }
 
-    pub fn get_archive(
-        &self,
-        index_number: usize,
-        file_number: usize,
-    ) -> Result<Archive> {
+    pub fn get_archive(&self, index_number: usize, file_number: usize) -> Result<Archive> {
         let contents = self.get_file(index_number, file_number)?;
         Archive::decode(contents)
     }
@@ -286,13 +276,13 @@ mod tests {
 
         let cache = open_filesystem();
         match cache.get_file(5, 0) {
-            Err(CacheError::IndexNotFound(_)) => {},
-            _ => panic!("Revision only has 5 index files")
+            Err(CacheError::IndexNotFound(_)) => {}
+            _ => panic!("Revision only has 5 index files"),
         }
 
         match cache.get_file(0, 100) {
-            Err(CacheError::FileNotFound(_, _)) => {},
-            _ => panic!("Index 0 does not contain 100 files")
+            Err(CacheError::FileNotFound(_, _)) => {}
+            _ => panic!("Index 0 does not contain 100 files"),
         }
     }
 }

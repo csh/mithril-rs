@@ -5,7 +5,7 @@ use bytes::Buf;
 
 use mithril_buf::GameBuf;
 
-use crate::{CacheFileSystem, ArchiveError};
+use crate::{ArchiveError, CacheFileSystem};
 
 const MAP_PLANES: usize = 4;
 const MAP_WIDTH: usize = 64;
@@ -186,8 +186,7 @@ pub struct MapFile {
 
 impl MapFile {
     pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> crate::Result<Self> {
-        let file = cache
-            .get_file(4, index.map_file_id as usize)?;
+        let file = cache.get_file(4, index.map_file_id as usize)?;
 
         let mut buf = crate::compression::decompress_gzip(file)?;
         let mut map_file = MapFile::new();
