@@ -3,6 +3,7 @@ name = "mithril-server"
 version = "0.1.0"
 authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
+default-run = "mithril-server"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

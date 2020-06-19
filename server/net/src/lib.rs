@@ -115,7 +115,7 @@ impl<'a> System<'a> for MithrilEntityManagementSystem {
                         log::info!("Disconnected: {}", addr);
                     }
                 }
-                NetworkSimulationEvent::RecvError(e) => {
+                NetworkSimulationEvent::RecvError(e) if e.kind() != std::io::ErrorKind::ConnectionAborted => {
                     log::error!("Recv Error: {:?}", e);
                 }
                 _ => {}
