@@ -37,7 +37,7 @@ impl Pathfinder {
         if path.is_empty() {
             return;
         }
-        
+
         self.clear();
 
         let mut full_route = VecDeque::new();

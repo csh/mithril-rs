@@ -4,13 +4,11 @@ extern crate mithril_codegen;
 #[macro_use]
 extern crate downcast;
 
-pub use packet::{
-    Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType,
-};
+pub use packet::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 
+mod codec;
 #[cfg(feature = "jaggrab")]
 pub mod jaggrab;
-mod codec;
 mod packet;
 
 pub mod packets;

@@ -1,6 +1,6 @@
 use indexmap::set::IndexSet;
-use specs::{Component, VecStorage, NullStorage};
 use specs::world::Index;
+use specs::{Component, NullStorage, VecStorage};
 
 #[derive(Default, Debug)]
 pub struct VisiblePlayers(pub IndexSet<Index>);

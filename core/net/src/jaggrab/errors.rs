@@ -1,5 +1,5 @@
-use thiserror::Error;
 use nom::Err;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum JaggrabError {
@@ -13,7 +13,10 @@ pub enum JaggrabError {
     Io(#[from] std::io::Error),
 }
 
-impl<I> From<Err<I>> for JaggrabError where I: Sized {
+impl<I> From<Err<I>> for JaggrabError
+where
+    I: Sized,
+{
     fn from(_: Err<I>) -> Self {
         JaggrabError::InvalidRequest
     }
