@@ -112,7 +112,8 @@ impl<'a> System<'a> for MithrilEntityManagementSystem {
                     });
                 }
                 NetworkSimulationEvent::Disconnect(addr) => {
-                    if players.entities.remove(addr).is_some() {
+                    if let Some(entity) = players.entities.remove(addr) {
+                        let _ = entities.delete(entity);
                         log::info!("Disconnected: {}", addr);
                     }
                 }
