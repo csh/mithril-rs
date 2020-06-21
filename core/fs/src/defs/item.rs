@@ -14,9 +14,15 @@ pub struct ItemDefinition {
     examine_text: String,
     member_only: bool,
     stackable: bool,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "crate::skip_empty_options")
+    )]
     ground_actions: [Option<String>; 5],
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "crate::skip_empty_options")
+    )]
     inventory_actions: [Option<String>; 5],
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     noted_sprite_id: Option<u16>,

@@ -22,12 +22,18 @@ pub struct EntityDefinition {
     combat_level: Option<u16>,
     name: String,
     examine_text: String,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "crate::skip_empty_options")
+    )]
     interact_actions: [Option<String>; 5],
     size: u8,
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     anim_stand: Option<u16>,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "crate::skip_empty_options")
+    )]
     anim_walk: [Option<u16>; 4],
     visible_on_minimap: bool,
     clickable: bool,
