@@ -18,4 +18,7 @@ fn main() {
     if let Err(e) = jaggrab::serve_jaggrab("0.0.0.0:43595", Arc::new(pool), cache) {
         log::error!("Failed to bootstrap JAGGRAB; {}", e);
     }
+
+    #[cfg(feature = "profiler")]
+    thread_profiler::write_profile("jaggrab.json");
 }

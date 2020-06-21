@@ -10,6 +10,9 @@ use mithril_core::{
 use mithril_server_net::MithrilTransportResource;
 use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers};
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 #[derive(Default)]
 pub struct SendInitialPacketsSystemDesc;
 
@@ -32,6 +35,9 @@ impl<'a> System<'a> for SendInitialPackets {
     );
 
     fn run(&mut self, (entities, lazy, mut transport, new_player, named): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("player join");
+
         for (player, named, _) in (&entities, &named, &new_player).join() {
             lazy.remove::<NewPlayer>(player);
 

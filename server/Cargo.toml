@@ -10,6 +10,13 @@ default-run = "mithril-server"
 [features]
 default = ["jaggrab"]
 jaggrab = ["mithril-jaggrab"]
+profiler = [
+    "thread_profiler",
+    "amethyst/profiler",
+    "mithril-server-player/profiler",
+    "mithril-server-net/profiler",
+    "mithril-jaggrab/profiler",
+]
 
 [lib]
 name = "mithril"
@@ -32,4 +39,8 @@ features = ["empty", "network"]
 default-features = false
 features = ["amethyst"]
 path = "jaggrab"
+optional = true
+
+[dependencies.thread_profiler]
+version = "0.3"
 optional = true

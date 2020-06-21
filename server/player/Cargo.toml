@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
 edition = "2018"
 
+[features]
+profiler = ["thread_profiler"]
+
 [dependencies]
 mithril-server-types = { path = "../types" }
 mithril-server-net = { path = "../net" }
@@ -20,3 +23,7 @@ rand = "0.7"
 version = "0.15"
 default-features = false
 features = ["empty", "network"]
+
+[dependencies.thread_profiler]
+version = "0.3"
+optional = true

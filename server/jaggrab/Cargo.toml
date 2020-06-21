@@ -12,6 +12,7 @@ required-features = ["standalone"]
 [features]
 default = ["standalone"]
 standalone = ["rayon", "simple_logger"]
+profiler = ["thread_profiler"]
 
 [dependencies]
 mithril-core = { path = "../../core"}
@@ -29,4 +30,8 @@ optional = true
 [dependencies.amethyst]
 version = "0.15"
 default-features = false
+optional = true
+
+[dependencies.thread_profiler]
+version = "0.3"
 optional = true

@@ -60,6 +60,9 @@ pub struct LoadingState {
 
 impl SimpleState for LoadingState {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
+        #[cfg(feature = "profiler")]
+        thread_profiler::profile_scope!("init");
+
         log::info!("Initializing Mithril..");
 
         let cache_path = match application_dir("../cache") {
