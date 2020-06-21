@@ -15,6 +15,25 @@ bytes = "0.5"
 bzip2 = "0.3"
 log = "0.4"
 
+[dependencies.serde]
+version = "1.0"
+optional = true
+features = ["derive"]
+
 [dev-dependencies]
 ci_info = "*"
-png = "*"
+
+[dev-dependencies.serde_json]
+version = "1.0"
+
+[dev-dependencies.png]
+version = "0.16"
+
+[[example]]
+name = "dump-tiles"
+path = "examples/dump_tiles.rs"
+
+[[example]]
+name = "serde"
+path = "examples/serde.rs"
+required-features = ["serde"]

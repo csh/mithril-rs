@@ -1,9 +1,12 @@
-use std::io::{prelude::*, Cursor, SeekFrom};
-
 use crate::{ArchiveError, CacheFileSystem};
 use bytes::Buf;
 use mithril_buf::GameBuf;
+use std::io::{prelude::*, Cursor, SeekFrom};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct ObjectDefinition {
     id: u16,
@@ -13,6 +16,7 @@ pub struct ObjectDefinition {
     interactive: bool,
     obstructive: bool,
     solid: bool,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
     interact_actions: [Option<String>; 10],
     length: u8,
     width: u8,

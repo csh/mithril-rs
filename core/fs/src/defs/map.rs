@@ -1,11 +1,11 @@
+use crate::{ArchiveError, CacheFileSystem};
+use bytes::Buf;
+use mithril_buf::GameBuf;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Result};
 
-use bytes::Buf;
-
-use mithril_buf::GameBuf;
-
-use crate::{ArchiveError, CacheFileSystem};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 const MAP_PLANES: usize = 4;
 const MAP_WIDTH: usize = 64;
@@ -18,6 +18,7 @@ const ORIENTATION_COUNT: u8 = 4;
 const MINIMUM_ATTRIBUTE_TYPE: u8 = 81;
 const LOWEST_CONTINUED_TYPE: u8 = 2;
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MapIndex {
     packed_coordinates: u16,
     map_file_id: u16,
@@ -80,6 +81,7 @@ impl Debug for MapIndex {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MapObject {
     id: u16,
     variant: u16,
