@@ -1,10 +1,12 @@
-use std::io::{prelude::*, Cursor, SeekFrom};
-
+use crate::{ArchiveError, CacheError, CacheFileSystem};
 use bytes::Buf;
 use mithril_buf::GameBuf;
+use std::io::{prelude::*, Cursor, SeekFrom};
 
-use crate::{ArchiveError, CacheError, CacheFileSystem};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct ItemDefinition {
     id: u16,
@@ -12,11 +14,16 @@ pub struct ItemDefinition {
     examine_text: String,
     member_only: bool,
     stackable: bool,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
     ground_actions: [Option<String>; 5],
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
     inventory_actions: [Option<String>; 5],
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     noted_sprite_id: Option<u16>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     noted_info_id: Option<u16>,
     value: i32,
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     team: Option<u8>,
 }
 
