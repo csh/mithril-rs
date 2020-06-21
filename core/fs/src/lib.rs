@@ -176,7 +176,6 @@ impl CacheFileSystem {
     }
 }
 
-
 #[cfg(feature = "serde")]
 pub(crate) fn skip_empty_options<T>(options: &[Option<T>]) -> bool {
     options.iter().all(Option::is_none)

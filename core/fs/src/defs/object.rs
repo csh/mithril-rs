@@ -16,7 +16,10 @@ pub struct ObjectDefinition {
     interactive: bool,
     obstructive: bool,
     solid: bool,
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "crate::skip_empty_options"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip_serializing_if = "crate::skip_empty_options")
+    )]
     interact_actions: [Option<String>; 10],
     length: u8,
     width: u8,
