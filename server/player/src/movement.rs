@@ -17,6 +17,9 @@ use mithril_core::{
 use mithril_server_net::{MithrilTransportResource, PacketEvent};
 use mithril_server_types::{CollisionDetector, Pathfinder, PreviousPosition, VisiblePlayers};
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 #[derive(Default)]
 pub struct PlayerSyncSystemDesc;
 
@@ -46,6 +49,9 @@ impl<'a> System<'a> for PlayerSyncSystem {
 
     #[allow(clippy::type_complexity)]
     fn run(&mut self, (entities, mut net, sync, mut visible_players): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("player sync");
+
         for (entity, named, current_pos, previous, visible) in (
             &entities,
             &sync.names,
@@ -267,6 +273,9 @@ impl<'a> System<'a> for EntityPathfindingSystem {
         &mut self,
         (entities, packets, detector, mut pos_storage, mut previous_pos, mut path_storage, lazy): Self::SystemData,
     ) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("pathfinding");
+
         for packet in packets.read(&mut self.reader) {
             if let PacketEvent::Gameplay(player, packet) = packet {
                 // TODO: More ergonomic packet filtering

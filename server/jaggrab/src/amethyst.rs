@@ -10,6 +10,9 @@ use amethyst::{
 };
 use mithril_core::fs::CacheFileSystem;
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 #[derive(Debug)]
 pub struct JaggrabServerBundle {
     listener: Option<TcpListener>,
@@ -60,6 +63,9 @@ impl<'a> System<'a> for JaggrabConnectionSystem {
     type SystemData = Write<'a, JaggrabServerResource>;
 
     fn run(&mut self, mut net: Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("jaggrab listen");
+
         let net = net.deref_mut();
         if let Some(ref listener) = net.listener {
             loop {
@@ -91,6 +97,9 @@ impl<'a> System<'a> for JaggrabSendingSystem {
     );
 
     fn run(&mut self, (mut net, cache): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("jaggrab send");
+
         while let Some(stream) = net.streams.pop_front() {
             if let Err(cause) = crate::serve_request(stream, &cache) {
                 log::error!("Processing JAGGRAB request failed; {}", cause);

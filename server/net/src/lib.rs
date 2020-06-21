@@ -24,6 +24,9 @@ use mithril_server_types::{ConnectionIsaac, NetworkAddress, NewPlayer};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 
+#[cfg(feature = "profiler")]
+use thread_profiler::profile_scope;
+
 #[derive(Debug)]
 pub struct MithrilNetworkBundle;
 
@@ -100,6 +103,8 @@ impl<'a> System<'a> for MithrilEntityManagementSystem {
     );
 
     fn run(&mut self, (entities, net_events, mut players, mut network_address): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("entity management");
         for event in net_events.read(&mut self.reader) {
             match event {
                 NetworkSimulationEvent::Connect(addr) => {
@@ -164,6 +169,8 @@ impl<'a> System<'a> for MithrilEncodingSystem {
     );
 
     fn run(&mut self, (mut transport, mut send_queue, address, mut rng): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("packet encoding");
         while let Some(event) = send_queue.events.pop_front() {
             let network_address = match address.get(event.entity()) {
                 Some(address) => address,
@@ -224,6 +231,8 @@ impl<'a> System<'a> for MithrilDecodingSystem {
     );
 
     fn run(&mut self, (net_events, players, mut incoming, mut rng): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("packet decoding");
         for event in net_events.read(&mut self.reader) {
             if let NetworkSimulationEvent::Message(addr, payload) = event {
                 let entity = match players.entities.get(addr) {
@@ -288,6 +297,8 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
     );
 
     fn run(&mut self, (channel, auth, mut net, lazy): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("handshake");
         for event in channel.read(&mut self.reader) {
             let (entity, packet) = match event {
                 PacketEvent::Handshake(entity, packet) => (*entity, packet),
