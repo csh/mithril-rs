@@ -7,6 +7,9 @@ mod sync;
 use crate::packets::GameplayEvent;
 pub use sync::*;
 
+mod region;
+pub use region::*;
+
 #[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct KeepAlive;
 

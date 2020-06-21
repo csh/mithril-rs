@@ -15,6 +15,18 @@ pub enum Direction {
     SouthEast = 7,
 }
 
+impl Direction {
+    pub fn to_orientation(&self) -> anyhow::Result<u8> {
+        match &self {
+            Self::West | Self::NorthWest => Ok(0),
+            Self::North | Self::NorthEast => Ok(1),
+            Self::East | Self::SouthEast => Ok(2),
+            Self::South | Self::SouthWest => Ok(3),
+            _ => Err(anyhow::anyhow!("This direction is not an orientation")),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Position {
     x: i16,
