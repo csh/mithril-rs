@@ -9,6 +9,7 @@ use crate::{PacketLength, PacketType};
 
 mod game;
 mod handshake;
+pub mod events;
 
 mod prelude {
     pub use bytes::{Buf, BufMut, BytesMut};
@@ -27,49 +28,49 @@ macro_rules! default_factory {
     };
 }
 
-macro_rules! item_option_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::ItemOption {
-                    packet_type: PacketType::$opt,
-                    interface_id: 0,
-                    item_id: 0,
-                    slot: 0,
-                })
-            }),
-        );
-    };
-}
-
-macro_rules! npc_option_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::NpcAction {
-                    packet_type: PacketType::$opt,
-                    index: 0,
-                })
-            }),
-        )
-    };
-}
-
-macro_rules! player_action_factory {
-    ($map:ident, $opt:ident) => {
-        $map.insert(
-            PacketType::$opt,
-            PacketFactory::new(|| {
-                Box::new(game::PlayerAction {
-                    packet_type: PacketType::$opt,
-                    index: 0,
-                })
-            }),
-        )
-    };
-}
+//macro_rules! item_option_factory {
+//    ($map:ident, $opt:ident) => {
+//        $map.insert(
+//            PacketType::$opt,
+//            PacketFactory::new(|| {
+//                Box::new(game::ItemOption {
+//                    packet_type: PacketType::$opt,
+//                    interface_id: 0,
+//                    item_id: 0,
+//                    slot: 0,
+//                })
+//            }),
+//        );
+//    };
+//}
+//
+//macro_rules! npc_option_factory {
+//    ($map:ident, $opt:ident) => {
+//        $map.insert(
+//            PacketType::$opt,
+//            PacketFactory::new(|| {
+//                Box::new(game::NpcAction {
+//                    packet_type: PacketType::$opt,
+//                    index: 0,
+//                })
+//            }),
+//        )
+//    };
+//}
+//
+//macro_rules! player_action_factory {
+//    ($map:ident, $opt:ident) => {
+//        $map.insert(
+//            PacketType::$opt,
+//            PacketFactory::new(|| {
+//                Box::new(game::PlayerAction {
+//                    packet_type: PacketType::$opt,
+//                    index: 0,
+//                })
+//            }),
+//        )
+//    };
+//}
 
 pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|| {
     let mut factories = AHashMap::new();
@@ -103,23 +104,23 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
     default_factory!(factories, MouseClicked);
     default_factory!(factories, PlayerDesign);
 
-    item_option_factory!(factories, FirstItemOption);
-    item_option_factory!(factories, SecondItemOption);
-    item_option_factory!(factories, ThirdItemOption);
-    item_option_factory!(factories, FourthItemOption);
-    item_option_factory!(factories, FifthItemOption);
-
-    npc_option_factory!(factories, FirstNpcAction);
-    npc_option_factory!(factories, SecondNpcAction);
-    npc_option_factory!(factories, ThirdNpcAction);
-    npc_option_factory!(factories, FourthNpcAction);
-    npc_option_factory!(factories, FifthNpcAction);
-
-    player_action_factory!(factories, FirstPlayerAction);
-    player_action_factory!(factories, SecondPlayerAction);
-    player_action_factory!(factories, ThirdPlayerAction);
-    player_action_factory!(factories, FourthPlayerAction);
-    player_action_factory!(factories, FifthPlayerAction);
+//    item_option_factory!(factories, FirstItemOption);
+//    item_option_factory!(factories, SecondItemOption);
+//    item_option_factory!(factories, ThirdItemOption);
+//    item_option_factory!(factories, FourthItemOption);
+//    item_option_factory!(factories, FifthItemOption);
+//
+//    npc_option_factory!(factories, FirstNpcAction);
+//    npc_option_factory!(factories, SecondNpcAction);
+//    npc_option_factory!(factories, ThirdNpcAction);
+//    npc_option_factory!(factories, FourthNpcAction);
+//    npc_option_factory!(factories, FifthNpcAction);
+//
+//    player_action_factory!(factories, FirstPlayerAction);
+//    player_action_factory!(factories, SecondPlayerAction);
+//    player_action_factory!(factories, ThirdPlayerAction);
+//    player_action_factory!(factories, FourthPlayerAction);
+//    player_action_factory!(factories, FifthPlayerAction);
 
     factories.insert(
         PacketType::Walk,
