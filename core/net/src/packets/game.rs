@@ -72,56 +72,257 @@ pub struct EnteredAmount {
 
 #[derive(Debug)]
 pub struct ItemOption {
-    pub packet_type: PacketType,
+    pub option_index: usize,
     pub item_id: u16,
     pub slot: u16,
     pub interface_id: u16,
 }
 
+impl Default for ItemOption {
+    fn default() -> Self {
+        Self {
+            option_index: 0,
+            item_id: 0,
+            slot: 0,
+            interface_id: 0
+        }
+    }
+}
+
 impl Packet for ItemOption {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.item_id = src.get_u16();
-        self.slot = src.get_u16t(Transform::Add);
-        self.interface_id = src.get_u16t(Transform::Add);
+        match self.option_index {
+            0 => {
+                self.interface_id = src.get_u16t_le(Transform::Add);
+                self.slot = src.get_u16t(Transform::Add);
+                self.item_id = src.get_u16_le();
+            }
+            1 => {
+                self.item_id = src.get_u16();
+                self.slot = src.get_u16t(Transform::Add);
+                self.interface_id = src.get_u16t(Transform::Add);
+            }
+            2 => {
+                self.item_id = src.get_u16t(Transform::Add);
+                self.slot = src.get_u16t_le(Transform::Add);
+                self.interface_id = src.get_u16t_le(Transform::Add);
+            },
+            3 => {
+                self.interface_id = src.get_u16t_le(Transform::Add);
+                self.slot = src.get_u16_le();
+                self.item_id = src.get_u16t(Transform::Add);
+            },
+            4 => {
+                self.item_id = src.get_u16t(Transform::Add);
+                self.interface_id = src.get_u16();
+                self.slot = src.get_u16t(Transform::Add);
+            }
+            _ => anyhow::bail!("invalid ItemOption index")
+        }
         Ok(())
     }
 
     fn get_type(&self) -> PacketType {
-        self.packet_type
+        match self.option_index {
+            0 => PacketType::FirstItemOption,
+            1 => PacketType::SecondItemOption,
+            2 => PacketType::ThirdItemOption,
+            3 => PacketType::FourthItemOption,
+            _ => PacketType::FifthItemOption
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ItemAction {
+    pub action_index: usize,
+    pub item_id: u16,
+    pub slot: u16,
+    pub interface_id: u16,
+}
+
+impl Default for ItemAction {
+    fn default() -> Self {
+        Self {
+            action_index: 0,
+            item_id: 0,
+            slot: 0,
+            interface_id: 0
+        }
+    }
+}
+
+impl Packet for ItemAction {
+    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
+        match self.action_index {
+            0 => {
+                self.interface_id = src.get_u16t(Transform::Add);
+                self.slot = src.get_u16t(Transform::Add);
+                self.item_id = src.get_u16t(Transform::Add);
+            }
+            1 => {
+                self.interface_id = src.get_u16t_le(Transform::Add);
+                self.item_id = src.get_u16t_le(Transform::Add);
+                self.slot = src.get_u16_le();
+            }
+            2 => {
+                self.interface_id = src.get_u16_le();
+                self.item_id = src.get_u16t(Transform::Add);
+                self.slot = src.get_u16t(Transform::Add);
+            },
+            3 => {
+                self.slot = src.get_u16t(Transform::Add);
+                self.interface_id = src.get_u16();
+                self.item_id = src.get_u16t(Transform::Add);
+            },
+            4 => {
+                self.slot = src.get_u16_le();
+                self.interface_id = src.get_u16t(Transform::Add);
+                self.slot = src.get_u16_le();
+            }
+            _ => anyhow::bail!("invalid ItemOption index")
+        }
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        match self.action_index {
+            0 => PacketType::FirstItemAction,
+            1 => PacketType::SecondItemAction,
+            2 => PacketType::ThirdItemAction,
+            3 => PacketType::FourthItemAction,
+            _ => PacketType::FifthItemAction
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct NpcAction {
-    pub packet_type: PacketType,
-    pub index: u16,
+    pub action_index: u16,
+    // TODO: Investigate if correct name once NPC spawning is functional
+    pub npc_id: u16,
+}
+
+impl Default for NpcAction {
+    fn default() -> Self {
+        Self {
+            action_index: 0,
+            npc_id: 0,
+        }
+    }
 }
 
 impl Packet for NpcAction {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.index = src.get_u16t(Transform::Add);
+        match self.action_index {
+            0 => self.npc_id = src.get_u16_le(),
+            1 => self.npc_id = src.get_u16t(Transform::Add),
+            2 => self.npc_id = src.get_u16t_le(Transform::Add),
+            3 => self.npc_id = src.get_u16(),
+            4 => self.npc_id = src.get_u16_le(),
+            _ => anyhow::bail!("invalid NpcAction index")
+        }
         Ok(())
     }
 
     fn get_type(&self) -> PacketType {
-        self.packet_type
+        match self.action_index {
+            0 => PacketType::FirstNpcAction,
+            1 => PacketType::SecondNpcAction,
+            2 => PacketType::ThirdNpcAction,
+            3 => PacketType::FourthNpcAction,
+            _ => PacketType::FifthNpcAction,
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct PlayerAction {
-    pub packet_type: PacketType,
-    pub index: u16,
+    pub action_index: u16,
+    pub player_id: u16,
+}
+
+impl Default for PlayerAction {
+    fn default() -> Self {
+        Self {
+            action_index: 0,
+            player_id: 0,
+        }
+    }
 }
 
 impl Packet for PlayerAction {
     fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
-        self.index = src.get_u16t_le(Transform::Add);
+        match self.action_index {
+            0 => self.player_id = src.get_u16(),
+            1 => self.player_id = src.get_u16_le(),
+            2 => self.player_id = src.get_u16_le(),
+            3 => self.player_id = src.get_u16_le(),
+            4 => self.player_id = src.get_u16_le(),
+            _ => anyhow::bail!("invalid NpcAction index")
+        }
         Ok(())
     }
 
     fn get_type(&self) -> PacketType {
-        self.packet_type
+        match self.action_index {
+            0 => PacketType::FirstPlayerAction,
+            1 => PacketType::SecondPlayerAction,
+            2 => PacketType::ThirdPlayerAction,
+            3 => PacketType::FourthPlayerAction,
+            _ => PacketType::FifthPlayerAction,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ObjectAction {
+    pub action_index: u16,
+    pub object_id: u16,
+    pub x: u16,
+    pub y: u16
+}
+
+impl Default for ObjectAction {
+    fn default() -> Self {
+        Self {
+            action_index: 0,
+            object_id: 0,
+            x: 0,
+            y: 0
+        }
+    }
+}
+
+impl Packet for ObjectAction {
+    fn try_read(&mut self, src: &mut BytesMut) -> anyhow::Result<()> {
+        match self.action_index {
+            0 => {
+                self.x = src.get_u16t_le(Transform::Add);
+                self.object_id = src.get_u16();
+                self.y = src.get_u16t(Transform::Add);
+            }
+            1 => {
+                self.object_id = src.get_u16t_le(Transform::Add);
+                self.y = src.get_u16_le();
+                self.x = src.get_u16t(Transform::Add)
+            }
+            2 => {
+                self.x = src.get_u16_le();
+                self.y = src.get_u16();
+                self.object_id = src.get_u16t_le(Transform::Add);
+            }
+            _ => anyhow::bail!("invalid ObjectAction index")
+        }
+        Ok(())
+    }
+
+    fn get_type(&self) -> PacketType {
+        match self.action_index {
+            0 => PacketType::FirstObjectAction,
+            1 => PacketType::SecondObjectAction,
+            _ => PacketType::ThirdObjectAction
+        }
     }
 }
 
@@ -529,6 +730,7 @@ impl Packet for Config {
     }
 }
 
+#[derive(Debug)]
 pub struct RegionChange {
     pub position: Position,
 }
@@ -547,6 +749,7 @@ impl Packet for RegionChange {
     }
 }
 
+#[derive(Debug)]
 pub struct ClearRegion {
     pub player: Position,
     pub region: Position,
@@ -565,6 +768,7 @@ impl Packet for ClearRegion {
     }
 }
 
+#[derive(Debug)]
 pub struct NpcSynchronization;
 
 impl Packet for NpcSynchronization {
