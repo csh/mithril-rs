@@ -86,18 +86,18 @@ pub fn decode_packet(
 mod tests {
     use super::*;
     use crate::packets::ServerMessage;
-    use rand::SeedableRng;
     use crate::packets::GameplayEvent;
+    use crate::packets::HandshakeEvent;
+    use crate::packets::HandshakeConnectResponse;
+    use rand::SeedableRng;
 
     #[test]
     fn test_plain_encode() {
-        let packet = ServerMessage {
-            message: "Hello World".to_string(),
-        };
+        let packet = HandshakeConnectResponse::default();
 
         let mut buf = BytesMut::new();
         assert!(
-            encode_packet(None, GameplayEvent::ServerMessage(packet).into(), &mut buf).is_ok(),
+            encode_packet(None, HandshakeEvent::HandshakeConnectResponse(packet).into(), &mut buf).is_ok(),
             "ServerMessage is encodable"
         );
 
@@ -108,10 +108,9 @@ mod tests {
     #[test]
     fn test_isaac_encode() {
         let mut encode_isaac = Some(rand_isaac::IsaacRng::seed_from_u64(0));
-        let message = "Hello World".to_owned();
 
-        let packet = crate::packets::ServerMessage {
-            message: message.clone(),
+        let packet = ServerMessage {
+            message: "Hello World".to_owned(),
         };
 
         let mut buf = BytesMut::new();
