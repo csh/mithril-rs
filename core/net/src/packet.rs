@@ -1,5 +1,3 @@
-use downcast::Any;
-
 use ahash::AHashMap;
 use bytes::BytesMut;
 use once_cell::sync::Lazy;
@@ -658,7 +656,7 @@ impl PacketFactory {
     }
 }
 
-pub trait Packet: Send + Sync + Any {
+pub trait Packet: Send + Sync {
     fn try_read(&mut self, _src: &mut BytesMut) -> anyhow::Result<()> {
         unimplemented!()
     }
@@ -669,5 +667,3 @@ pub trait Packet: Send + Sync + Any {
 
     fn get_type(&self) -> PacketType;
 }
-
-downcast!(dyn Packet);
