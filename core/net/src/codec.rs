@@ -3,10 +3,11 @@ use rand::Rng;
 use rand_isaac::IsaacRng;
 
 use crate::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
+use crate::packets::PacketEvent;
 
 pub fn encode_packet(
     isaac: Option<&mut IsaacRng>,
-    packet: Box<dyn Packet>,
+    packet: PacketEvent,
     dst: &mut BytesMut,
 ) -> anyhow::Result<()> {
     log::info!("Encoding a {:?}", packet.get_type());
@@ -41,7 +42,7 @@ pub fn encode_packet(
 pub fn decode_packet(
     isaac: Option<&mut IsaacRng>,
     src: &mut BytesMut,
-) -> anyhow::Result<Box<dyn Packet>> {
+) -> anyhow::Result<PacketEvent> {
     let packet_id = match isaac {
         Some(isaac) => {
             let decoded_id = src.get_u8().wrapping_sub(isaac.gen::<u8>());
@@ -82,6 +83,7 @@ mod tests {
     use super::*;
     use crate::packets::ServerMessage;
     use rand::SeedableRng;
+    use crate::packets::GameplayEvent;
 
     #[test]
     fn test_plain_encode() {
@@ -91,7 +93,7 @@ mod tests {
 
         let mut buf = BytesMut::new();
         assert!(
-            encode_packet(None, Box::new(packet), &mut buf).is_ok(),
+            encode_packet(None, GameplayEvent::ServerMessage(packet).into(), &mut buf).is_ok(),
             "ServerMessage is encodable"
         );
 
@@ -110,7 +112,7 @@ mod tests {
 
         let mut buf = BytesMut::new();
         assert!(
-            encode_packet(encode_isaac.as_mut(), Box::new(packet), &mut buf).is_ok(),
+            encode_packet(encode_isaac.as_mut(), GameplayEvent::ServerMessage(packet).into(), &mut buf).is_ok(),
             "ServerMessage is encodable"
         );
         println!("{:02X}", buf);

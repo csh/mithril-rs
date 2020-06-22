@@ -3,6 +3,7 @@ use downcast::Any;
 use ahash::AHashMap;
 use bytes::BytesMut;
 use once_cell::sync::Lazy;
+use crate::packets::PacketEvent;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PacketId {
@@ -566,7 +567,7 @@ impl PacketType {
             .unwrap_or_else(|| panic!("cannot find ID for packet type {:?}", self))
     }
 
-    pub fn create(&self) -> anyhow::Result<Box<dyn Packet>> {
+    pub fn create(&self) -> anyhow::Result<PacketEvent> {
         match crate::packets::PACKET_FACTORIES.get(&self) {
             None => anyhow::bail!("packet factory does not exist for {:?}", &self),
             Some(factory) => Ok(factory.create()),
@@ -644,15 +645,15 @@ impl PacketType {
 }
 
 pub struct PacketFactory {
-    init_fn: fn() -> Box<dyn Packet>,
+    init_fn: fn() -> PacketEvent,
 }
 
 impl PacketFactory {
-    pub fn new(init_fn: fn() -> Box<dyn Packet>) -> PacketFactory {
+    pub fn new(init_fn: fn() -> PacketEvent) -> PacketFactory {
         Self { init_fn }
     }
 
-    pub fn create(&self) -> Box<dyn Packet> {
+    pub fn create(&self) -> PacketEvent {
         (self.init_fn)()
     }
 }
