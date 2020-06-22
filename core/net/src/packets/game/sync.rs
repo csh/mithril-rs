@@ -470,7 +470,7 @@ pub enum PlayerUpdate {
     Update(Option<EntityMovement>, SyncBlocks),
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct PlayerSynchronization {
     pub player_update: Option<PlayerUpdate>,
     pub other_players: Vec<PlayerUpdate>,

@@ -286,7 +286,7 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
 
             if let PacketEvent::Handshake(HandshakeEvent::HandshakeHello(_)) = event {
                 log::info!("First handshake packet received");
-                net.send_raw(player, HandshakeEvent::HandshakeExchangeKey(Default::default()));
+                net.send_raw(player, HandshakeExchangeKey::default());
             } else if let PacketEvent::Handshake(HandshakeEvent::HandshakeAttemptConnect(attempt)) = event {
                 log::info!("Second handshake packet received");
 
@@ -296,7 +296,7 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                         Ok(result) => result,
                         Err(cause) => {
                             log::error!("'{}' authentication failed; {}", attempt.username, cause);
-                            net.send_raw(player, HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::SessionBad)));
+                            net.send_raw(player, HandshakeConnectResponse(LoginResponse::SessionBad));
                             continue;
                         }
                     };
@@ -304,12 +304,12 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
                 if !authenticated {
                     net.send_raw(
                         player,
-                        HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::InvalidCredentials)),
+                        HandshakeConnectResponse(LoginResponse::InvalidCredentials),
                     );
                     continue;
                 }
 
-                net.send_raw(player, HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::Success)));
+                net.send_raw(player, HandshakeConnectResponse(LoginResponse::Success));
 
                 let decoding_seed =
                     prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
@@ -329,11 +329,13 @@ pub struct MithrilTransportResource {
 }
 
 impl MithrilTransportResource {
-    pub fn send(&mut self, player: Entity, packet: GameplayEvent) {
+    pub fn send<I: Into<GameplayEvent>>(&mut self, player: Entity, packet: I) {
+        let packet = packet.into();
         self.events.push_back((player, packet.into()));
     }
 
-    pub fn send_raw(&mut self, player: Entity, packet: HandshakeEvent) {
+    pub fn send_raw<I: Into<HandshakeEvent>>(&mut self, player: Entity, packet: I) {
+        let packet = packet.into();
         self.events.push_back((player, packet.into()));
     }
 }

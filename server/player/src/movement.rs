@@ -9,7 +9,7 @@ use ahash::AHashMap;
 use mithril_core::{
     net::packets::{
         AddPlayer, Appearance, AppearanceType, EntityMovement, Equipment, Item, NpcSynchronization,
-        PlayerSynchronization, PlayerUpdate, SyncBlocks, Walk, RegionChange
+        PlayerSynchronization, PlayerUpdate, SyncBlocks, RegionChange
     },
     pos::{Direction, Position},
 };
@@ -186,14 +186,14 @@ impl<'a> System<'a> for PlayerSyncSystem {
             if update_region {
                 net.send(
                     entity,
-                    GameplayEvent::RegionChange(RegionChange {
+                    RegionChange {
                         position: *current_pos,
-                    }),
+                    },
                 );
 
                 net.send(
                     entity,
-                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
+                    PlayerSynchronization {
                         player_update: Some(PlayerUpdate::Update(
                             Some(EntityMovement::Teleport {
                                 destination: *current_pos,
@@ -203,14 +203,14 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             SyncBlocks::default(),
                         )),
                         other_players: updates,
-                    }),
+                    },
                 );
             } else if has_moved {
                 let direction = previous.unwrap().0.direction_between(*current_pos);
 
                 net.send(
                     entity,
-                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
+                    PlayerSynchronization {
                         player_update: Some(PlayerUpdate::Update(
                             Some(EntityMovement::Move {
                                 direction: direction as i32,
@@ -218,19 +218,19 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             SyncBlocks::default(),
                         )),
                         other_players: updates,
-                    }),
+                    },
                 );
             } else {
                 net.send(
                     entity,
-                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
+                    PlayerSynchronization {
                         player_update: None,
                         other_players: updates,
-                    }),
+                    },
                 );
             }
 
-            net.send(entity, GameplayEvent::NpcSynchronization(NpcSynchronization));
+            net.send(entity, NpcSynchronization);
         }
     }
 }
