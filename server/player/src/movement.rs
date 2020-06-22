@@ -9,12 +9,12 @@ use ahash::AHashMap;
 use mithril_core::{
     net::packets::{
         AddPlayer, Appearance, AppearanceType, EntityMovement, Equipment, Item, NpcSynchronization,
-        PlayerSynchronization, PlayerUpdate, SyncBlocks, Walk,
+        PlayerSynchronization, PlayerUpdate, SyncBlocks, Walk, RegionChange
     },
     pos::{Direction, Position},
 };
 
-use mithril_server_net::{MithrilTransportResource, PacketEvent};
+use mithril_server_net::{MithrilTransportResource, EntityPacketEvent, PacketEventChannel, GameplayEvent, PacketEvent};
 use mithril_server_types::{CollisionDetector, Pathfinder, PreviousPosition, VisiblePlayers};
 
 #[cfg(feature = "profiler")]
@@ -186,14 +186,14 @@ impl<'a> System<'a> for PlayerSyncSystem {
             if update_region {
                 net.send(
                     entity,
-                    mithril_core::net::packets::RegionChange {
+                    GameplayEvent::RegionChange(RegionChange {
                         position: *current_pos,
-                    },
+                    }),
                 );
 
                 net.send(
                     entity,
-                    PlayerSynchronization {
+                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
                         player_update: Some(PlayerUpdate::Update(
                             Some(EntityMovement::Teleport {
                                 destination: *current_pos,
@@ -203,14 +203,14 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             SyncBlocks::default(),
                         )),
                         other_players: updates,
-                    },
+                    }),
                 );
             } else if has_moved {
                 let direction = previous.unwrap().0.direction_between(*current_pos);
 
                 net.send(
                     entity,
-                    PlayerSynchronization {
+                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
                         player_update: Some(PlayerUpdate::Update(
                             Some(EntityMovement::Move {
                                 direction: direction as i32,
@@ -218,19 +218,19 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             SyncBlocks::default(),
                         )),
                         other_players: updates,
-                    },
+                    }),
                 );
             } else {
                 net.send(
                     entity,
-                    PlayerSynchronization {
+                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
                         player_update: None,
                         other_players: updates,
-                    },
+                    }),
                 );
             }
 
-            net.send(entity, NpcSynchronization);
+            net.send(entity, GameplayEvent::NpcSynchronization(NpcSynchronization));
         }
     }
 }
@@ -242,18 +242,18 @@ impl<'a, 'b> SystemDesc<'a, 'b, EntityPathfindingSystem> for EntityPathfindingSy
     fn build(self, world: &mut World) -> EntityPathfindingSystem {
         <EntityPathfindingSystem as System<'_>>::SystemData::setup(world);
         let reader = world
-            .fetch_mut::<EventChannel<PacketEvent>>()
+            .fetch_mut::<PacketEventChannel>()
             .register_reader();
         EntityPathfindingSystem::new(reader)
     }
 }
 
 pub struct EntityPathfindingSystem {
-    reader: ReaderId<PacketEvent>,
+    reader: ReaderId<EntityPacketEvent>,
 }
 
 impl EntityPathfindingSystem {
-    pub fn new(reader: ReaderId<PacketEvent>) -> Self {
+    pub fn new(reader: ReaderId<EntityPacketEvent>) -> Self {
         Self { reader }
     }
 }
@@ -261,7 +261,7 @@ impl EntityPathfindingSystem {
 impl<'a> System<'a> for EntityPathfindingSystem {
     type SystemData = (
         Entities<'a>,
-        Read<'a, EventChannel<PacketEvent>>,
+        Read<'a, PacketEventChannel>,
         ReadExpect<'a, CollisionDetector>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, PreviousPosition>,
@@ -276,24 +276,19 @@ impl<'a> System<'a> for EntityPathfindingSystem {
         #[cfg(feature = "profiler")]
         profile_scope!("pathfinding");
 
-        for packet in packets.read(&mut self.reader) {
-            if let PacketEvent::Gameplay(player, packet) = packet {
-                // TODO: More ergonomic packet filtering
-                if !packet.is::<Walk>() {
-                    continue;
+        for (player, packet) in packets.read(&mut self.reader) {
+            if let PacketEvent::Gameplay(packet) = packet {
+                if let GameplayEvent::Walk(packet) = packet {
+                    let pathfinder = match path_storage.get_mut(*player) {
+                        Some(pathfinder) => pathfinder,
+                        None => continue,
+                    };
+
+                    let current = pos_storage.get(*player).unwrap();
+
+                    pathfinder.set_running(packet.running);
+                    pathfinder.walk_path(&detector, *current, packet.path.clone());
                 }
-
-                let pathfinder = match path_storage.get_mut(*player) {
-                    Some(pathfinder) => pathfinder,
-                    None => continue,
-                };
-
-                let current = pos_storage.get(*player).unwrap();
-
-                let packet: &Walk = packet.downcast_ref().unwrap();
-
-                pathfinder.set_running(packet.running);
-                pathfinder.walk_path(&detector, *current, packet.path.clone());
             }
         }
 

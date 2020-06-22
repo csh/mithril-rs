@@ -12,8 +12,12 @@ pub fn encode_packet(
 ) -> anyhow::Result<()> {
     log::info!("Encoding a {:?}", packet.get_type());
     let isaac = match isaac {
-        Some(isaac) => isaac,
+        Some(isaac) => {
+            debug_assert!(packet.is_gameplay(), "encoding requested using the ISAAC generator was not a gameplay packet");
+            isaac
+        },
         None => {
+            debug_assert!(packet.is_handshake(), "encoding requested without the ISAAC generator was not a handshake packet");
             packet.try_write(dst)?;
             return Ok(());
         }
