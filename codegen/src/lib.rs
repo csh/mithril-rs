@@ -262,3 +262,39 @@ pub fn derive_packet(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     output.extend(errors);
     output.into()
 }
+
+#[proc_macro_derive(EventFromPacket)]
+pub fn derive_event(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let derive = syn::parse_macro_input!(item as DeriveInput);
+    let mut output = TokenStream::new();
+    let mut errors = TokenStream::new();
+
+    let ident = derive.ident.clone();
+    match derive.data {
+        syn::Data::Struct(syn::DataStruct { .. }) => {},
+        _ => {
+            errors.extend(
+                syn::Error::new_spanned(derive, "EventFromPacket can only be derived from a struct")
+                    .to_compile_error(),
+            );
+            return errors.into();
+        }
+    };
+
+    let for_ident: Ident = if ident.to_string().starts_with("Handshake") {
+        syn::parse_quote!(HandshakeEvent)
+    } else {
+        syn::parse_quote!(GameplayEvent)
+    };
+
+    let from_impl = quote! {
+        impl From<#ident> for crate::packets::#for_ident {
+            fn from(packet: #ident) -> Self {
+                crate::packets::#for_ident::#ident(packet)
+            }
+        }
+    };
+
+    output.extend(from_impl);
+    output.into()
+}

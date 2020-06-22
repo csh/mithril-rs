@@ -7,7 +7,7 @@ use mithril_core::{
     net::packets::{IdAssignment, ServerMessage, SwitchTabInterface, UpdateSkill},
     pos::Position,
 };
-use mithril_server_net::{MithrilTransportResource, GameplayEvent};
+use mithril_server_net::MithrilTransportResource;
 use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers};
 
 #[cfg(feature = "profiler")]
@@ -43,10 +43,10 @@ impl<'a> System<'a> for SendInitialPackets {
 
             transport.send(
                 player,
-                GameplayEvent::IdAssignment(IdAssignment {
+                IdAssignment {
                     is_member: true,
                     entity_id: 1,
-                }),
+                },
             );
 
             let open_tabs: [u16; 14] = [
@@ -69,29 +69,29 @@ impl<'a> System<'a> for SendInitialPackets {
             for i in 0..open_tabs.len() {
                 transport.send(
                     player,
-                    GameplayEvent::SwitchTabInterface(SwitchTabInterface {
+                    SwitchTabInterface {
                         interface_id: open_tabs[i],
                         tab_id: i as u8,
-                    })
+                    }
                 );
             }
 
             for i in 0..25 {
                 transport.send(
                     player,
-                    GameplayEvent::UpdateSkill(UpdateSkill {
+                    UpdateSkill {
                         skill_id: i,
                         experience: 0,
                         level: 1,
-                    }),
+                    },
                 );
             }
 
             transport.send(
                 player,
-                GameplayEvent::ServerMessage(ServerMessage {
+                ServerMessage {
                     message: "Mithril:tradereq:".to_owned(),
-                }),
+                },
             );
 
             {
@@ -99,17 +99,17 @@ impl<'a> System<'a> for SendInitialPackets {
 
                 transport.send(
                     player,
-                    GameplayEvent::ClearRegion(ClearRegion {
+                    ClearRegion {
                         player: Position::default(),
                         region: Position::default(),
-                    }),
+                    },
                 );
 
                 transport.send(
                     player,
-                    GameplayEvent::RegionChange(RegionChange {
+                    RegionChange {
                         position: Position::default(),
-                    }),
+                    },
                 );
 
                 let mut equipment = Equipment::default();
@@ -134,7 +134,7 @@ impl<'a> System<'a> for SendInitialPackets {
 
                 transport.send(
                     player,
-                    GameplayEvent::PlayerSynchronization(PlayerSynchronization {
+                    PlayerSynchronization {
                         player_update: Some(PlayerUpdate::Update(
                             Some(EntityMovement::Teleport {
                                 changed_region: true,
@@ -144,7 +144,7 @@ impl<'a> System<'a> for SendInitialPackets {
                             blocks,
                         )),
                         other_players: vec![],
-                    }),
+                    },
                 )
             }
 

@@ -1,4 +1,5 @@
 use super::prelude::*;
+use mithril_codegen::EventFromPacket;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
@@ -27,7 +28,7 @@ pub enum LoginResponse {
     Unknown = 254,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, EventFromPacket)]
 pub struct HandshakeHello {
     pub name_hash: u8,
 }
@@ -44,7 +45,7 @@ impl Packet for HandshakeHello {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, EventFromPacket)]
 pub struct HandshakeAttemptConnect {
     pub is_reconnect: bool,
     pub version: u8,
@@ -84,7 +85,7 @@ impl Packet for HandshakeAttemptConnect {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct HandshakeExchangeKey {
     session_key: u64,
     response_code: LoginResponse,
@@ -112,7 +113,7 @@ impl Packet for HandshakeExchangeKey {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct HandshakeConnectResponse(pub LoginResponse);
 
 impl Default for HandshakeConnectResponse {

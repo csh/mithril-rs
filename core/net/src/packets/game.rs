@@ -1,19 +1,21 @@
 use super::prelude::*;
 use crate::PacketLength;
 use mithril_pos::Position;
+use mithril_codegen::EventFromPacket;
 
 mod sync;
 pub use sync::*;
+use crate::packets::GameplayEvent;
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct KeepAlive;
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct FocusUpdate {
     pub in_focus: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, EventFromPacket)]
 pub struct PublicChat {
     pub effects: u8,
     pub colour: u8,
@@ -38,7 +40,7 @@ impl Packet for PublicChat {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, EventFromPacket)]
 pub struct PrivateChat {
     pub recipient: String,
     pub message: String,
@@ -59,13 +61,13 @@ impl Packet for PrivateChat {
     }
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ArrowKey {
     pub roll: u16,
     pub yaw: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct EnteredAmount {
     pub amount: u32,
 }
@@ -133,6 +135,18 @@ impl Packet for ItemOption {
     }
 }
 
+impl From<ItemOption> for GameplayEvent {
+    fn from(packet: ItemOption) -> Self {
+        match packet.option_index {
+            0 => GameplayEvent::FirstItemOption(packet),
+            1 => GameplayEvent::SecondItemOption(packet),
+            2 => GameplayEvent::ThirdItemOption(packet),
+            3 => GameplayEvent::FourthItemOption(packet),
+            _ => GameplayEvent::FifthItemOption(packet),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ItemAction {
     pub action_index: usize,
@@ -196,6 +210,18 @@ impl Packet for ItemAction {
     }
 }
 
+impl From<ItemAction> for GameplayEvent {
+    fn from(packet: ItemAction) -> Self {
+        match packet.action_index {
+            0 => GameplayEvent::FirstItemAction(packet),
+            1 => GameplayEvent::SecondItemAction(packet),
+            2 => GameplayEvent::ThirdItemAction(packet),
+            3 => GameplayEvent::FourthItemAction(packet),
+            _ => GameplayEvent::FifthItemAction(packet),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NpcAction {
     pub action_index: u16,
@@ -236,6 +262,18 @@ impl Packet for NpcAction {
     }
 }
 
+impl From<NpcAction> for GameplayEvent {
+    fn from(packet: NpcAction) -> Self {
+        match packet.action_index {
+            0 => GameplayEvent::FirstNpcAction(packet),
+            1 => GameplayEvent::SecondNpcAction(packet),
+            2 => GameplayEvent::ThirdNpcAction(packet),
+            3 => GameplayEvent::FourthNpcAction(packet),
+            _ => GameplayEvent::FifthNpcAction(packet),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct PlayerAction {
     pub action_index: u16,
@@ -271,6 +309,18 @@ impl Packet for PlayerAction {
             2 => PacketType::ThirdPlayerAction,
             3 => PacketType::FourthPlayerAction,
             _ => PacketType::FifthPlayerAction,
+        }
+    }
+}
+
+impl From<PlayerAction> for GameplayEvent {
+    fn from(packet: PlayerAction) -> Self {
+        match packet.action_index {
+            0 => GameplayEvent::FirstPlayerAction(packet),
+            1 => GameplayEvent::SecondPlayerAction(packet),
+            2 => GameplayEvent::ThirdPlayerAction(packet),
+            3 => GameplayEvent::FourthPlayerAction(packet),
+            _ => GameplayEvent::FifthPlayerAction(packet),
         }
     }
 }
@@ -326,41 +376,51 @@ impl Packet for ObjectAction {
     }
 }
 
-#[derive(Debug, Default, Packet)]
+impl From<ObjectAction> for GameplayEvent {
+    fn from(packet: ObjectAction) -> Self {
+        match packet.action_index {
+            0 => GameplayEvent::FirstObjectAction(packet),
+            1 => GameplayEvent::SecondObjectAction(packet),
+            _ => GameplayEvent::ThirdObjectAction(packet)
+        }
+    }
+}
+
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct DialogueContinue {
     pub interface_id: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct AddFriend {
     #[base37]
     pub username: String,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct AddIgnore {
     #[base37]
     pub username: String,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct RemoveFriend {
     #[base37]
     pub username: String,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct RemoveIgnore {
     #[base37]
     pub username: String,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct Button {
     pub interface_id: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ItemOnItem {
     pub target_slot: u16,
     #[transform = "add"]
@@ -374,7 +434,7 @@ pub struct ItemOnItem {
     pub source_interface: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ItemOnNpc {
     #[transform = "add"]
     pub source_id: u16,
@@ -386,7 +446,7 @@ pub struct ItemOnNpc {
     pub source_interface: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ItemOnObject {
     pub interface_id: u16,
     #[endian = "little"]
@@ -402,27 +462,27 @@ pub struct ItemOnObject {
     pub item_id: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct PrivacyOption {
     pub public_state: u8,
     pub private_state: u8,
     pub trade_state: u8,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct Command {
     pub command: String,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct FlashingTabClicked {
     pub tab: u8,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ClosedInterface;
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct MagicOnNpc {
     #[transform = "add"]
     #[endian = "little"]
@@ -431,7 +491,7 @@ pub struct MagicOnNpc {
     pub spell: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct MagicOnItem {
     pub slot: u16,
     #[transform = "add"]
@@ -441,7 +501,7 @@ pub struct MagicOnItem {
     pub spell: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct MagicOnPlayer {
     #[transform = "add"]
     pub index: u16,
@@ -449,7 +509,7 @@ pub struct MagicOnPlayer {
     pub spell: u16,
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct ReportAbuse {
     #[base37]
     pub username: String,
@@ -457,7 +517,7 @@ pub struct ReportAbuse {
     pub muted: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct SpamPacket(pub PacketLength);
 
 impl Packet for SpamPacket {
@@ -474,7 +534,7 @@ impl Packet for SpamPacket {
     }
 }
 
-#[derive(Debug, Default, Packet)]
+#[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct TakeTileItem {
     #[endian = "little"]
     pub y: u16,
@@ -483,7 +543,7 @@ pub struct TakeTileItem {
     pub x: u16,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, EventFromPacket)]
 pub struct MouseClicked {
     pub delay: u64,
     pub right_click: bool,
@@ -508,7 +568,7 @@ impl Packet for MouseClicked {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, EventFromPacket)]
 pub struct PlayerDesign {
     pub style: [u8; 7],
     pub colours: [u8; 5],
@@ -530,7 +590,7 @@ impl Packet for PlayerDesign {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct Walk {
     pub packet_type: PacketType,
     pub path: Vec<Position>,
@@ -565,7 +625,7 @@ impl Packet for Walk {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetModel {
     #[transform = "add"]
     #[endian = "little"]
@@ -573,22 +633,22 @@ pub struct SetWidgetModel {
     pub model_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct EnterAmount;
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct DisplayCrossbones {
     pub shown: bool,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SwitchTabInterface {
     pub interface_id: u16,
     #[transform = "add"]
     pub tab_id: u8,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetNpcModel {
     #[transform = "add"]
     #[endian = "little"]
@@ -598,12 +658,12 @@ pub struct SetWidgetNpcModel {
     pub interface_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct OpenInterface {
     pub id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetPlayerAction {
     #[transform = "negate"]
     pub slot: u8,
@@ -612,68 +672,68 @@ pub struct SetPlayerAction {
     pub action: String,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct DisplayTabInterface {
     #[transform = "negate"]
     pub tab_id: u8,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct Logout;
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct UpdateRunEnergy {
     pub energy: u8,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetText {
     pub message: String,
     #[transform = "add"]
     pub widget_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct UpdateSkill {
     pub skill_id: u8,
     pub experience: u32,
     pub level: u8,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct OpenDialogueInterface {
     #[endian = "little"]
     pub interface_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetVisibility {
     pub is_visible: bool,
     #[transform = "add"]
     pub widget_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetPlayerModel {
     #[endian = "little"]
     pub interface_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetModelAnimation {
     pub interface_id: u16,
     pub animation_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct CloseInterface;
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct UpdateWeight {
     pub weight: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct SetWidgetItemModel {
     #[endian = "little"]
     pub interface_id: u16,
@@ -681,14 +741,14 @@ pub struct SetWidgetItemModel {
     pub model_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct OpenInterfaceSidebar {
     #[transform = "add"]
     pub interface_id: u16,
     pub sidebar_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct IdAssignment {
     #[transform = "add"]
     pub is_member: bool,
@@ -697,7 +757,7 @@ pub struct IdAssignment {
     pub entity_id: u16,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, EventFromPacket)]
 pub struct ServerMessage {
     pub message: String,
 }
@@ -730,7 +790,7 @@ impl Packet for Config {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct RegionChange {
     pub position: Position,
 }
@@ -749,7 +809,7 @@ impl Packet for RegionChange {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct ClearRegion {
     pub player: Position,
     pub region: Position,
@@ -768,7 +828,7 @@ impl Packet for ClearRegion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct NpcSynchronization;
 
 impl Packet for NpcSynchronization {
