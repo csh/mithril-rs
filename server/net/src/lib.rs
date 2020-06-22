@@ -14,15 +14,17 @@ use bytes::{Buf, BufMut, BytesMut};
 use mithril_core::net::{
     self,
     packets::{
-        HandshakeAttemptConnect, HandshakeConnectResponse, HandshakeExchangeKey, HandshakeHello,
-        LoginResponse,
+        HandshakeConnectResponse, HandshakeExchangeKey, LoginResponse
     },
-    Packet,
 };
 use mithril_server_types::auth::Authenticator;
 use mithril_server_types::{ConnectionIsaac, NetworkAddress, NewPlayer};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
+
+pub use mithril_core::net::packets::{PacketEvent, GameplayEvent, HandshakeEvent};
+pub type EntityPacketEvent = (Entity, PacketEvent);
+pub type PacketEventChannel = EventChannel<EntityPacketEvent>;
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -53,7 +55,7 @@ impl<'a, 'b> SystemBundle<'a, 'b> for MithrilNetworkBundle {
         builder.add(
             MithrilHandshakeSystem {
                 reader: world
-                    .fetch_mut::<EventChannel<PacketEvent>>()
+                    .fetch_mut::<PacketEventChannel>()
                     .register_reader(),
             },
             "handshake_system",
@@ -133,20 +135,6 @@ impl<'a> System<'a> for MithrilEntityManagementSystem {
     }
 }
 
-pub enum PacketEvent {
-    Handshake(Entity, Box<dyn Packet>),
-    Gameplay(Entity, Box<dyn Packet>),
-}
-
-impl PacketEvent {
-    fn entity(&self) -> Entity {
-        match self {
-            PacketEvent::Handshake(entity, _) => *entity,
-            PacketEvent::Gameplay(entity, _) => *entity,
-        }
-    }
-}
-
 #[derive(Default, Debug)]
 struct MithrilEncodingSystemDesc;
 
@@ -171,17 +159,17 @@ impl<'a> System<'a> for MithrilEncodingSystem {
     fn run(&mut self, (mut transport, mut send_queue, address, mut rng): Self::SystemData) {
         #[cfg(feature = "profiler")]
         profile_scope!("packet encoding");
-        while let Some(event) = send_queue.events.pop_front() {
-            let network_address = match address.get(event.entity()) {
+        while let Some((player, packet)) = send_queue.events.pop_front() {
+            let network_address = match address.get(player) {
                 Some(address) => address,
                 None => continue,
             };
 
             let mut encoded = bytes::BytesMut::new();
-            let encode_result = match event {
-                PacketEvent::Handshake(_, packet) => net::encode_packet(None, packet, &mut encoded),
-                PacketEvent::Gameplay(entity, packet) => {
-                    if let Some(isaac) = rng.get_mut(entity) {
+            let encode_result = match packet {
+                PacketEvent::Handshake(_) => net::encode_packet(None, packet, &mut encoded),
+                PacketEvent::Gameplay(_) => {
+                    if let Some(isaac) = rng.get_mut(player) {
                         net::encode_packet(Some(&mut isaac.encoding), packet, &mut encoded)
                     } else {
                         Err(anyhow::anyhow!(
@@ -226,7 +214,7 @@ impl<'a> System<'a> for MithrilDecodingSystem {
     type SystemData = (
         Read<'a, EventChannel<NetworkSimulationEvent>>,
         Read<'a, PlayerEntitiesResource>,
-        Write<'a, EventChannel<PacketEvent>>,
+        Write<'a, PacketEventChannel>,
         WriteStorage<'a, ConnectionIsaac>,
     );
 
@@ -256,23 +244,13 @@ impl<'a> System<'a> for MithrilDecodingSystem {
                  * An example of packets that may arrive together are MouseClicked and PrivacyOption
                  */
                 while payload.has_remaining() {
-                    let (emit_gameplay, packet) = match rng.get_mut(entity) {
-                        Some(isaac) => (
-                            true,
-                            net::decode_packet(Some(&mut isaac.decoding), &mut payload),
-                        ),
-                        None => (false, net::decode_packet(None, &mut payload)),
+                    let packet = match rng.get_mut(entity) {
+                        Some(isaac) => net::decode_packet(Some(&mut isaac.decoding), &mut payload),
+                        None => net::decode_packet(None, &mut payload),
                     };
 
                     match packet {
-                        Ok(packet) => {
-                            let packet_event = if emit_gameplay {
-                                PacketEvent::Gameplay(entity, packet)
-                            } else {
-                                PacketEvent::Handshake(entity, packet)
-                            };
-                            incoming.single_write(packet_event);
-                        }
+                        Ok(packet) => incoming.single_write((entity, packet)),
                         Err(cause) => {
                             log::error!("Failed to decode packet; {}", cause);
                             break;
@@ -285,12 +263,12 @@ impl<'a> System<'a> for MithrilDecodingSystem {
 }
 
 struct MithrilHandshakeSystem {
-    reader: ReaderId<PacketEvent>,
+    reader: ReaderId<EntityPacketEvent>,
 }
 
 impl<'a> System<'a> for MithrilHandshakeSystem {
     type SystemData = (
-        Read<'a, EventChannel<PacketEvent>>,
+        Read<'a, PacketEventChannel>,
         ReadExpect<'a, Authenticator>,
         Write<'a, MithrilTransportResource>,
         Read<'a, LazyUpdate>,
@@ -299,44 +277,47 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
     fn run(&mut self, (channel, auth, mut net, lazy): Self::SystemData) {
         #[cfg(feature = "profiler")]
         profile_scope!("handshake");
-        for event in channel.read(&mut self.reader) {
-            let (entity, packet) = match event {
-                PacketEvent::Handshake(entity, packet) => (*entity, packet),
-                _ => continue,
-            };
+        for (player, event) in channel.read(&mut self.reader) {
+            if !event.is_handshake() {
+                continue;
+            }
 
-            if packet.is::<HandshakeHello>() {
+            let player = *player;
+
+            if let PacketEvent::Handshake(HandshakeEvent::HandshakeHello(_)) = event {
                 log::info!("First handshake packet received");
-                net.send_raw(entity, HandshakeExchangeKey::default());
-            } else if let Ok(attempt) = packet.downcast_ref::<HandshakeAttemptConnect>() {
+                net.send_raw(player, HandshakeEvent::HandshakeExchangeKey(Default::default()));
+            } else if let PacketEvent::Handshake(HandshakeEvent::HandshakeAttemptConnect(attempt)) = event {
+                log::info!("Second handshake packet received");
+
                 let authenticated = match auth
                     .authenticate(attempt.username.clone(), attempt.password.clone())
-                {
-                    Ok(result) => result,
-                    Err(cause) => {
-                        log::error!("'{}' authentication failed; {}", attempt.username, cause);
-                        net.send_raw(entity, HandshakeConnectResponse(LoginResponse::SessionBad));
-                        continue;
-                    }
-                };
+                    {
+                        Ok(result) => result,
+                        Err(cause) => {
+                            log::error!("'{}' authentication failed; {}", attempt.username, cause);
+                            net.send_raw(player, HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::SessionBad)));
+                            continue;
+                        }
+                    };
 
                 if !authenticated {
                     net.send_raw(
-                        entity,
-                        HandshakeConnectResponse(LoginResponse::InvalidCredentials),
+                        player,
+                        HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::InvalidCredentials)),
                     );
                     continue;
                 }
 
-                net.send_raw(entity, HandshakeConnectResponse(LoginResponse::Success));
+                net.send_raw(player, HandshakeEvent::HandshakeConnectResponse(HandshakeConnectResponse(LoginResponse::Success)));
 
                 let decoding_seed =
                     prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 0);
                 let encoding_seed =
                     prepare_isaac_seed(attempt.client_isaac_key, attempt.server_isaac_key, 50);
-                lazy.insert(entity, ConnectionIsaac::new(decoding_seed, encoding_seed));
-                lazy.insert(entity, Named::new(attempt.username.clone()));
-                lazy.insert(entity, NewPlayer);
+                lazy.insert(player, ConnectionIsaac::new(decoding_seed, encoding_seed));
+                lazy.insert(player, Named::new(attempt.username.clone()));
+                lazy.insert(player, NewPlayer);
             }
         }
     }
@@ -344,18 +325,16 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
 
 #[derive(Default)]
 pub struct MithrilTransportResource {
-    events: VecDeque<PacketEvent>,
+    events: VecDeque<EntityPacketEvent>,
 }
 
 impl MithrilTransportResource {
-    pub fn send<P: Packet>(&mut self, entity: Entity, packet: P) {
-        self.events
-            .push_back(PacketEvent::Gameplay(entity, Box::new(packet)))
+    pub fn send(&mut self, player: Entity, packet: GameplayEvent) {
+        self.events.push_back((player, packet.into()));
     }
 
-    pub fn send_raw<P: Packet>(&mut self, entity: Entity, packet: P) {
-        self.events
-            .push_back(PacketEvent::Handshake(entity, Box::new(packet)))
+    pub fn send_raw(&mut self, player: Entity, packet: HandshakeEvent) {
+        self.events.push_back((player, packet.into()));
     }
 }
 

@@ -233,6 +233,22 @@ macro_rules! save_my_sanity {
     }
 }
 
+impl PacketEvent {
+    pub fn is_handshake(&self) -> bool {
+        match self {
+            PacketEvent::Handshake(_) => true,
+            PacketEvent::Gameplay(_) => false,
+        }
+    }
+
+    pub fn is_gameplay(&self) -> bool {
+        match self {
+            PacketEvent::Handshake(_) => false,
+            PacketEvent::Gameplay(_) => true
+        }
+    }
+}
+
 // TODO: Code generation pls.
 // TODO: Return an error in the appropriate method if the packet cannot be read/write.
 impl Packet for PacketEvent {
