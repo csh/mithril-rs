@@ -16,7 +16,6 @@ mithril-buf = { path = "../buf" }
 
 rand_isaac = "0.2"
 once_cell = "1.4"
-downcast = "0.10"
 anyhow = "1.0"
 bytes = "0.5"
 ahash = "0.3"

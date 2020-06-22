@@ -1,9 +1,6 @@
 #[macro_use]
 extern crate mithril_codegen;
 
-#[macro_use]
-extern crate downcast;
-
 pub use packet::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 
 mod codec;
