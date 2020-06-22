@@ -9,7 +9,9 @@ use crate::{PacketLength, PacketType};
 
 mod game;
 mod handshake;
-pub mod events;
+mod events;
+
+pub use events::*;
 
 mod prelude {
     pub use bytes::{Buf, BufMut, BytesMut};
@@ -20,144 +22,154 @@ mod prelude {
 
 /// Register a PacketFactory that uses Default to construct the packet.
 macro_rules! default_factory {
-    ($map:ident, $ty:ident) => {
+    ($map:ident, $event:ident, $ty:ident) => {
         $map.insert(
             PacketType::$ty,
-            PacketFactory::new(|| Box::new($ty::default())),
+            PacketFactory::new(|| $event::$ty($ty::default()).into()),
         )
     };
 }
 
-//macro_rules! item_option_factory {
-//    ($map:ident, $opt:ident) => {
-//        $map.insert(
-//            PacketType::$opt,
-//            PacketFactory::new(|| {
-//                Box::new(game::ItemOption {
-//                    packet_type: PacketType::$opt,
-//                    interface_id: 0,
-//                    item_id: 0,
-//                    slot: 0,
-//                })
-//            }),
-//        );
-//    };
-//}
-//
-//macro_rules! npc_option_factory {
-//    ($map:ident, $opt:ident) => {
-//        $map.insert(
-//            PacketType::$opt,
-//            PacketFactory::new(|| {
-//                Box::new(game::NpcAction {
-//                    packet_type: PacketType::$opt,
-//                    index: 0,
-//                })
-//            }),
-//        )
-//    };
-//}
-//
-//macro_rules! player_action_factory {
-//    ($map:ident, $opt:ident) => {
-//        $map.insert(
-//            PacketType::$opt,
-//            PacketFactory::new(|| {
-//                Box::new(game::PlayerAction {
-//                    packet_type: PacketType::$opt,
-//                    index: 0,
-//                })
-//            }),
-//        )
-//    };
-//}
+macro_rules! item_option_factory {
+    ($map:ident, $opt:ident, $idx:literal) => {
+        $map.insert(
+            PacketType::$opt,
+            PacketFactory::new(|| GameplayEvent::$opt(ItemOption {
+                option_index: $idx,
+                ..Default::default()
+            }).into()),
+        )
+    };
+}
+
+macro_rules! npc_action_factory {
+    ($map:ident, $opt:ident, $idx:literal) => {
+        action_factory!($map, $opt, NpcAction, $idx)
+    };
+}
+
+macro_rules! player_action_factory {
+    ($map:ident, $opt:ident, $idx:literal) => {
+        action_factory!($map, $opt, PlayerAction, $idx)
+    };
+}
+
+macro_rules! object_action_factory {
+    ($map:ident, $opt:ident, $idx:literal) => {
+        action_factory!($map, $opt, ObjectAction, $idx)
+    };
+}
+
+macro_rules! item_action_factory {
+    ($map:ident, $opt:ident, $idx:literal) => {
+        action_factory!($map, $opt, ItemAction, $idx)
+    };
+}
+
+macro_rules! action_factory {
+    ($map:ident, $opt:ident, $impl:ident, $idx:literal) => {
+        $map.insert(
+            PacketType::$opt,
+            PacketFactory::new(|| GameplayEvent::$opt($impl {
+                action_index: $idx,
+                ..Default::default()
+            }).into()),
+        )
+    }
+}
 
 pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|| {
     let mut factories = AHashMap::new();
 
-    default_factory!(factories, HandshakeHello);
-    default_factory!(factories, HandshakeAttemptConnect);
-    default_factory!(factories, KeepAlive);
-    default_factory!(factories, FocusUpdate);
-    default_factory!(factories, PublicChat);
-    default_factory!(factories, PrivateChat);
-    default_factory!(factories, AddFriend);
-    default_factory!(factories, AddIgnore);
-    default_factory!(factories, RemoveFriend);
-    default_factory!(factories, RemoveIgnore);
-    default_factory!(factories, Button);
-    default_factory!(factories, DialogueContinue);
-    default_factory!(factories, ItemOnItem);
-    default_factory!(factories, ItemOnObject);
-    default_factory!(factories, ItemOnNpc);
-    default_factory!(factories, PrivacyOption);
-    default_factory!(factories, Command);
-    default_factory!(factories, FlashingTabClicked);
-    default_factory!(factories, ClosedInterface);
-    default_factory!(factories, MagicOnNpc);
-    default_factory!(factories, MagicOnItem);
-    default_factory!(factories, MagicOnPlayer);
-    default_factory!(factories, ArrowKey);
-    default_factory!(factories, EnteredAmount);
-    default_factory!(factories, ReportAbuse);
-    default_factory!(factories, TakeTileItem);
-    default_factory!(factories, MouseClicked);
-    default_factory!(factories, PlayerDesign);
+    default_factory!(factories, HandshakeEvent, HandshakeHello);
+    default_factory!(factories, HandshakeEvent, HandshakeAttemptConnect);
+    default_factory!(factories, GameplayEvent, KeepAlive);
+    default_factory!(factories, GameplayEvent, FocusUpdate);
+    default_factory!(factories, GameplayEvent, PublicChat);
+    default_factory!(factories, GameplayEvent, PrivateChat);
+    default_factory!(factories, GameplayEvent, AddFriend);
+    default_factory!(factories, GameplayEvent, AddIgnore);
+    default_factory!(factories, GameplayEvent, RemoveFriend);
+    default_factory!(factories, GameplayEvent, RemoveIgnore);
+    default_factory!(factories, GameplayEvent, Button);
+    default_factory!(factories, GameplayEvent, DialogueContinue);
+    default_factory!(factories, GameplayEvent, ItemOnItem);
+    default_factory!(factories, GameplayEvent, ItemOnObject);
+    default_factory!(factories, GameplayEvent, ItemOnNpc);
+    default_factory!(factories, GameplayEvent, PrivacyOption);
+    default_factory!(factories, GameplayEvent, Command);
+    default_factory!(factories, GameplayEvent, FlashingTabClicked);
+    default_factory!(factories, GameplayEvent, ClosedInterface);
+    default_factory!(factories, GameplayEvent, MagicOnNpc);
+    default_factory!(factories, GameplayEvent, MagicOnItem);
+    default_factory!(factories, GameplayEvent, MagicOnPlayer);
+    default_factory!(factories, GameplayEvent, ArrowKey);
+    default_factory!(factories, GameplayEvent, EnteredAmount);
+    default_factory!(factories, GameplayEvent, ReportAbuse);
+    default_factory!(factories, GameplayEvent, TakeTileItem);
+    default_factory!(factories, GameplayEvent, MouseClicked);
+    default_factory!(factories, GameplayEvent, PlayerDesign);
 
-//    item_option_factory!(factories, FirstItemOption);
-//    item_option_factory!(factories, SecondItemOption);
-//    item_option_factory!(factories, ThirdItemOption);
-//    item_option_factory!(factories, FourthItemOption);
-//    item_option_factory!(factories, FifthItemOption);
-//
-//    npc_option_factory!(factories, FirstNpcAction);
-//    npc_option_factory!(factories, SecondNpcAction);
-//    npc_option_factory!(factories, ThirdNpcAction);
-//    npc_option_factory!(factories, FourthNpcAction);
-//    npc_option_factory!(factories, FifthNpcAction);
-//
-//    player_action_factory!(factories, FirstPlayerAction);
-//    player_action_factory!(factories, SecondPlayerAction);
-//    player_action_factory!(factories, ThirdPlayerAction);
-//    player_action_factory!(factories, FourthPlayerAction);
-//    player_action_factory!(factories, FifthPlayerAction);
+    item_option_factory!(factories, FirstItemOption, 0);
+    item_option_factory!(factories, SecondItemOption, 1);
+    item_option_factory!(factories, ThirdItemOption, 2);
+    item_option_factory!(factories, FourthItemOption, 3);
+    item_option_factory!(factories, FifthItemOption, 4);
+
+    item_action_factory!(factories, FirstItemAction, 0);
+    item_action_factory!(factories, SecondItemAction, 1);
+    item_action_factory!(factories, ThirdItemAction, 2);
+    item_action_factory!(factories, FourthItemAction, 3);
+    item_action_factory!(factories, FifthItemAction, 4);
+
+    npc_action_factory!(factories, FirstNpcAction, 0);
+    npc_action_factory!(factories, SecondNpcAction, 1);
+    npc_action_factory!(factories, ThirdNpcAction, 2);
+    npc_action_factory!(factories, FourthNpcAction, 3);
+    npc_action_factory!(factories, FifthNpcAction, 4);
+
+    player_action_factory!(factories, FirstPlayerAction, 0);
+    player_action_factory!(factories, SecondPlayerAction, 1);
+    player_action_factory!(factories, ThirdPlayerAction, 2);
+    player_action_factory!(factories, FourthPlayerAction, 3);
+    player_action_factory!(factories, FifthPlayerAction, 4);
+
+    object_action_factory!(factories, FirstObjectAction, 0);
+    object_action_factory!(factories, SecondObjectAction, 1);
+    object_action_factory!(factories, ThirdObjectAction, 2);
 
     factories.insert(
         PacketType::Walk,
-        PacketFactory::new(|| {
-            Box::new(Walk {
-                packet_type: PacketType::Walk,
-                path: Vec::default(),
-                running: false,
-            })
-        }),
+        PacketFactory::new(|| GameplayEvent::Walk(Walk {
+            packet_type: PacketType::Walk,
+            path: Vec::default(),
+            running: false,
+        }).into())
     );
     factories.insert(
         PacketType::WalkWithAnticheat,
-        PacketFactory::new(|| {
-            Box::new(Walk {
-                packet_type: PacketType::WalkWithAnticheat,
-                path: Vec::default(),
-                running: false,
-            })
-        }),
+        PacketFactory::new(|| GameplayEvent::Walk(Walk {
+            packet_type: PacketType::WalkWithAnticheat,
+            path: Vec::default(),
+            running: false,
+        }).into())
     );
 
     factories.insert(
         PacketType::SpamPacket(PacketLength::VariableByte),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::VariableByte))),
+        PacketFactory::new(|| GameplayEvent::SpamPacket(SpamPacket(PacketLength::VariableByte)).into()),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(0)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(0)))),
+        PacketFactory::new(|| GameplayEvent::SpamPacket(SpamPacket(PacketLength::Fixed(0))).into()),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(1)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(1)))),
+        PacketFactory::new(|| GameplayEvent::SpamPacket(SpamPacket(PacketLength::Fixed(1))).into()),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(4)),
-        PacketFactory::new(|| Box::new(SpamPacket(PacketLength::Fixed(4)))),
+        PacketFactory::new(|| GameplayEvent::SpamPacket(SpamPacket(PacketLength::Fixed(4))).into()),
     );
 
     factories
