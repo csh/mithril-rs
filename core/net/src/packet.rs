@@ -438,6 +438,14 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
         PacketType::EnterAmount,
     );
     packets.insert(
+        PacketId::new(44, PacketDirection::Serverbound, PacketStage::Gameplay),
+        PacketType::AddTileItem,
+    );
+    packets.insert(
+        PacketId::new(60, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::GroupedRegionUpdate,
+    );
+    packets.insert(
         PacketId::new(61, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::DisplayCrossbones,
     );
@@ -466,8 +474,16 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
         PacketType::PlayerSynchronization,
     );
     packets.insert(
+        PacketId::new(84, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::UpdateTileItem,
+    );
+    packets.insert(
         PacketId::new(97, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::OpenInterface,
+    );
+    packets.insert(
+        PacketId::new(101, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::RemoveObject,
     );
     packets.insert(
         PacketId::new(104, PacketDirection::Clientbound, PacketStage::Gameplay),
@@ -494,6 +510,14 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
         PacketType::UpdateSkill,
     );
     packets.insert(
+        PacketId::new(151, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::SendObject,
+    );
+    packets.insert(
+        PacketId::new(156, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::RemoveTileItem,
+    );
+    packets.insert(
         PacketId::new(164, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::OpenDialogueInterface,
     );
@@ -512,6 +536,10 @@ static PACKET_ID_MAP: Lazy<AHashMap<PacketId, PacketType>> = Lazy::new(|| {
     packets.insert(
         PacketId::new(206, PacketDirection::Clientbound, PacketStage::Gameplay),
         PacketType::PrivacyOption,
+    );
+    packets.insert(
+        PacketId::new(215, PacketDirection::Clientbound, PacketStage::Gameplay),
+        PacketType::AddGlobalTileItem,
     );
     packets.insert(
         PacketId::new(219, PacketDirection::Clientbound, PacketStage::Gameplay),

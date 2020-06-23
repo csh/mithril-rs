@@ -5,26 +5,39 @@ use mithril_buf::Transform;
 use mithril_buf::{GameBuf, GameBufMut};
 use mithril_pos::{Direction, Position};
 
-#[derive(Debug)]
+pub enum ObjectType {
+    LengthwiseWall = 0,
+    TriangularCorner = 1,
+    WallCorner = 2,
+    RectangularCorner = 3,
+    DiagonalWall = 9,
+    Interactable = 10,
+    DiagonalInteractable = 11,
+    FloorDecoration = 12,
+}
+
+#[derive(Debug, Packet)]
 pub struct RemoveObject {
-    position: Position,
-    object_type: u8,
-    orientation: Direction,
+    #[transform = "negate"]
+    type_and_orientation: u8,
+    position_offset: u8,
 }
 
 impl RegionUpdatePacket for RemoveObject {}
 
-impl Packet for RemoveObject {
-    fn try_write(&self, buffer: &mut BytesMut) -> anyhow::Result<()> {
-        let orientation = self.orientation.to_orientation()?;
-        let data = self.object_type << 2 | orientation & 0x3;
-        buffer.put_u8t(data, Transform::Negate);
-        buffer.put_u8(to_offset(&self.position));
-        Ok(())
-    }
-
-    fn get_type(&self) -> PacketType {
-        PacketType::RemoveObject
+impl RemoveObject {
+    fn new(
+        object_type: ObjectType,
+        orientation: Direction,
+        position: &Position,
+    ) -> anyhow::Result<Self> {
+        let type_and_orientation =
+            ((object_type as u8) << 2) | (orientation.to_orientation()? & 0x3);
+        dbg!(type_and_orientation);
+        Ok(RemoveObject {
+            type_and_orientation,
+            position_offset: to_offset(position),
+        })
     }
 }
 
@@ -38,10 +51,10 @@ pub struct RemoveTileItem {
 impl RegionUpdatePacket for RemoveTileItem {}
 
 impl RemoveTileItem {
-    pub fn new(position: &Position, id: u16) -> Self {
+    pub fn new(item: u16, position: &Position) -> Self {
         RemoveTileItem {
             position_offset: to_offset(&position),
-            id,
+            id: item,
         }
     }
 }
@@ -58,9 +71,9 @@ pub struct AddTileItem {
 impl RegionUpdatePacket for AddTileItem {}
 
 impl AddTileItem {
-    pub fn new(id: u16, amount: u16, position: &Position) -> Self {
+    pub fn new(item: u16, amount: u16, position: &Position) -> Self {
         AddTileItem {
-            id,
+            id: item,
             amount,
             position_offset: to_offset(&position),
         }
@@ -82,11 +95,11 @@ impl RegionUpdatePacket for SendObject {}
 impl SendObject {
     pub fn new(
         id: u16,
-        object_type: u8,
+        object_type: ObjectType,
         orientation: Direction,
         position: &Position,
     ) -> anyhow::Result<Self> {
-        let type_and_orientation = object_type << 2 | orientation.to_orientation()? & 0x3;
+        let type_and_orientation = (object_type as u8) << 2 | orientation.to_orientation()? & 0x3;
         Ok(SendObject {
             position_offset: to_offset(position),
             id,
@@ -149,6 +162,7 @@ fn to_offset(position: &Position) -> u8 {
 #[derive(Debug)]
 pub struct GroupedRegionUpdate {
     pub position: Position,
+    pub viewport_center: Position,
     pub updates: Vec<Box<dyn RegionUpdatePacket>>,
 }
 
@@ -156,8 +170,10 @@ pub trait RegionUpdatePacket: Packet + std::fmt::Debug {}
 
 impl Packet for GroupedRegionUpdate {
     fn try_write(&self, buffer: &mut BytesMut) -> anyhow::Result<()> {
-        let dx = (self.position.get_x() / 8 * 8) as u8;
-        let dy = (self.position.get_y() / 8 * 8) as u8;
+        let vx = self.viewport_center.get_x() / 8 - 6;
+        let vy = self.viewport_center.get_y() / 8 - 6;
+        let dx = (((self.position.get_x() / 8) - vx) * 8) as u8;
+        let dy = (((self.position.get_y() / 8) - vy) * 8) as u8;
         buffer.put_u8(dy);
         buffer.put_u8t(dx, Transform::Negate);
         let result: Result<Vec<_>, _> = self
@@ -173,5 +189,123 @@ impl Packet for GroupedRegionUpdate {
 
     fn get_type(&self) -> PacketType {
         PacketType::GroupedRegionUpdate
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_object() {
+        const PACKET: [u8; 2] = [0xd9, 0x50];
+        let mut buf = BytesMut::new();
+        RemoveObject::new(
+            ObjectType::DiagonalWall,
+            Direction::South,
+            &Position::default(),
+        )
+        .expect("Direction should be none")
+        .try_write(&mut buf)
+        .expect("Write failed?");
+
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_remove_tile_item() {
+        const PACKET: [u8; 3] = [0xd0, 0x00, 0x14];
+        let mut buf = BytesMut::new();
+        RemoveTileItem::new(20, &Position::default())
+            .try_write(&mut buf)
+            .expect("Write failed?");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_add_tile_item() {
+        const PACKET: [u8; 5] = [0x94, 0x00, 0x00, 0x01, 0x50];
+        let mut buf = BytesMut::new();
+        AddTileItem::new(20, 1, &Position::default())
+            .try_write(&mut buf)
+            .expect("Write failed?");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_send_object() {
+        const PACKET: [u8; 4] = [0xd0, 0x01, 0x00, 0x59];
+        let mut buf = BytesMut::new();
+        SendObject::new(
+            1,
+            ObjectType::DiagonalWall,
+            Direction::South,
+            &Position::default(),
+        )
+        .expect("Direction was none")
+        .try_write(&mut buf)
+        .expect("Write failed");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_add_global_tile_item() {
+        const PACKET: [u8; 7] = [0x00, 0x94, 0x30, 0x00, 0x83, 0x00, 0x01];
+        let mut buf = BytesMut::new();
+        AddGlobalTileItem::new(20, &Position::default(), 3, 1)
+            .try_write(&mut buf)
+            .expect("Write failed?");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_update_tile_item() {
+        const PACKET: [u8; 7] = [0x50, 0x00, 0x14, 0x00, 0x05, 0x00, 0x01];
+        let mut buf = BytesMut::new();
+        UpdateTileItem::new(20, &Position::default(), 5, 1)
+            .try_write(&mut buf)
+            .expect("Write failed?");
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_empty_grouped_update() {
+        const PACKET: [u8; 2] = [0x30, 0xd0];
+        let mut buf = BytesMut::new();
+        GroupedRegionUpdate {
+            position: Position::default(),
+            viewport_center: Position::default(),
+            updates: vec![],
+        }
+        .try_write(&mut buf)
+        .expect("Write failed?");
+
+        assert_eq!(&buf[..], &PACKET[..]);
+    }
+
+    #[test]
+    fn test_grouped_update() {
+        const PACKET: [u8; 13] = [
+            0x30, 0xd0, 0xd7, 0x00, 0x94, 0x30, 0x00, 0x83, 0x00, 0x01, 0x65, 0xd7, 0x50,
+        ];
+        let mut buf = BytesMut::new();
+
+        let add_global = AddGlobalTileItem::new(20, &Position::default(), 3, 1);
+        let remove_obj = RemoveObject::new(
+            ObjectType::Interactable,
+            Direction::North,
+            &Position::default(),
+        )
+        .expect("Direction was none");
+
+        GroupedRegionUpdate {
+            position: Position::default(),
+            viewport_center: Position::default(),
+            updates: vec![Box::new(add_global), Box::new(remove_obj)],
+        }
+        .try_write(&mut buf)
+        .expect("Write failed?");
+
+        assert_eq!(&buf[..], &PACKET[..]);
     }
 }
