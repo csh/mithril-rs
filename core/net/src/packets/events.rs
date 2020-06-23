@@ -1,7 +1,7 @@
 use super::*;
 use crate::Packet;
-use std::fmt::Debug;
 use bytes::BytesMut;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub enum PacketEvent {
@@ -31,7 +31,7 @@ pub enum GameplayEvent {
     DialogueContinue(DialogueContinue),
     SecondItemOption(ItemOption),
     ThirdItemAction(ItemAction),
-//    FlaggedMouseEvent(FlaggedMouseEvent),
+    //    FlaggedMouseEvent(FlaggedMouseEvent),
     ItemOnItem(ItemOnItem),
     ItemOnNpc(ItemOnNpc),
     ThirdObjectAction(ObjectAction),
@@ -64,7 +64,7 @@ pub enum GameplayEvent {
     AddFriend(AddFriend),
     ItemOnObject(ItemOnObject),
     EnteredAmount(EnteredAmount),
-//    SwitchItem(SwitchItem),
+    //    SwitchItem(SwitchItem),
     RemoveFriend(RemoveFriend),
     ReportAbuse(ReportAbuse),
     TakeTileItem(TakeTileItem),
@@ -77,54 +77,54 @@ pub enum GameplayEvent {
     // endregion
 
     // region Gameplay - Clientbound
-//    ForwardPrivateChat(ForwardPrivateChat),
-//    OpenOverlay(OpenOverlay),
+    //    ForwardPrivateChat(ForwardPrivateChat),
+    //    OpenOverlay(OpenOverlay),
     SetWidgetItemModel(SetWidgetItemModel),
-//    SendObject(SendObject),
+    //    SendObject(SendObject),
     ServerMessage(ServerMessage),
-//    GroupedRegionUpdate(GroupedRegionUpdate),
-//    RemoveObject(RemoveObject),
-//    SetUpdatedRegion(SetUpdatedRegion),
-//    RemoveTileItem(RemoveTileItem),
+    //    GroupedRegionUpdate(GroupedRegionUpdate),
+    //    RemoveObject(RemoveObject),
+    //    SetUpdatedRegion(SetUpdatedRegion),
+    //    RemoveTileItem(RemoveTileItem),
     Logout(Logout),
     OpenInterface(OpenInterface),
-//    SendFriend(SendFriend),
-//    ConfigByte(ConfigByte),
-//    ConfigInt(ConfigInt),
+    //    SendFriend(SendFriend),
+    //    ConfigByte(ConfigByte),
+    //    ConfigInt(ConfigInt),
     UpdateRunEnergy(UpdateRunEnergy),
     ClearRegion(ClearRegion),
     SetWidgetModel(SetWidgetModel),
     NpcSynchronization(NpcSynchronization),
     SetPlayerAction(SetPlayerAction),
     SetWidgetVisibility(SetWidgetVisibility),
-//    AddGlobalTileItem(AddGlobalTileItem),
+    //    AddGlobalTileItem(AddGlobalTileItem),
     DisplayTabInterface(DisplayTabInterface),
     CloseInterface(CloseInterface),
     SetWidgetPlayerModel(SetWidgetPlayerModel),
-//    PositionHintIcon(PositionHintIcon),
+    //    PositionHintIcon(PositionHintIcon),
     RegionChange(RegionChange),
     EnterAmount(EnterAmount),
-//    UpdateSlottedItems(UpdateSlottedItems),
+    //    UpdateSlottedItems(UpdateSlottedItems),
     SetWidgetText(SetWidgetText),
-//    UpdateTileItem(UpdateTileItem),
+    //    UpdateTileItem(UpdateTileItem),
     IdAssignment(IdAssignment),
     OpenDialogueInterface(OpenDialogueInterface),
-//    UpdateItems(UpdateItems),
-//    IgnoreList(IgnoreList),
+    //    UpdateItems(UpdateItems),
+    //    IgnoreList(IgnoreList),
     SetWidgetNpcModel(SetWidgetNpcModel),
-//    FriendServerStatus(FriendServerStatus),
-//    AddTileItem(AddTileItem),
+    //    FriendServerStatus(FriendServerStatus),
+    //    AddTileItem(AddTileItem),
     DisplayCrossbones(DisplayCrossbones),
     PlayerSynchronization(PlayerSynchronization),
     SetWidgetModelAnimation(SetWidgetModelAnimation),
     OpenInterfaceSidebar(OpenInterfaceSidebar),
-//    FlashTabInterface(FlashTabInterface),
+    //    FlashTabInterface(FlashTabInterface),
     UpdateSkill(UpdateSkill),
     UpdateWeight(UpdateWeight),
-//    MobHintIcon(MobHintIcon),
+    //    MobHintIcon(MobHintIcon),
     SwitchTabInterface(SwitchTabInterface),
-//    OpenDialogueOverlay(OpenDialogueOverlay),
-//    OpenSidebar(OpenSidebar),
+    //    OpenDialogueOverlay(OpenDialogueOverlay),
+    //    OpenSidebar(OpenSidebar),
     // endregion
 }
 
@@ -228,9 +228,9 @@ macro_rules! save_my_sanity {
                 GameplayEvent::UpdateSkill(packet) => packet.$method($buf),
                 GameplayEvent::UpdateWeight(packet) => packet.$method($buf),
                 GameplayEvent::SwitchTabInterface(packet) => packet.$method($buf),
-            }
+            },
         }
-    }
+    };
 }
 
 impl PacketEvent {
@@ -244,7 +244,7 @@ impl PacketEvent {
     pub fn is_gameplay(&self) -> bool {
         match self {
             PacketEvent::Handshake(_) => false,
-            PacketEvent::Gameplay(_) => true
+            PacketEvent::Gameplay(_) => true,
         }
     }
 }
@@ -347,7 +347,7 @@ impl Packet for PacketEvent {
                 GameplayEvent::UpdateSkill(packet) => packet.get_type(),
                 GameplayEvent::UpdateWeight(packet) => packet.get_type(),
                 GameplayEvent::SwitchTabInterface(packet) => packet.get_type(),
-            }
+            },
         }
     }
 }
