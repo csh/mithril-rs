@@ -271,11 +271,14 @@ pub fn derive_event(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let ident = derive.ident.clone();
     match derive.data {
-        syn::Data::Struct(syn::DataStruct { .. }) => {},
+        syn::Data::Struct(syn::DataStruct { .. }) => {}
         _ => {
             errors.extend(
-                syn::Error::new_spanned(derive, "EventFromPacket can only be derived from a struct")
-                    .to_compile_error(),
+                syn::Error::new_spanned(
+                    derive,
+                    "EventFromPacket can only be derived from a struct",
+                )
+                .to_compile_error(),
             );
             return errors.into();
         }

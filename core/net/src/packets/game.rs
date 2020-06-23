@@ -1,11 +1,11 @@
 use super::prelude::*;
 use crate::PacketLength;
-use mithril_pos::Position;
 use mithril_codegen::EventFromPacket;
+use mithril_pos::Position;
 
 mod sync;
-pub use sync::*;
 use crate::packets::GameplayEvent;
+pub use sync::*;
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
 pub struct KeepAlive;
@@ -86,7 +86,7 @@ impl Default for ItemOption {
             option_index: 0,
             item_id: 0,
             slot: 0,
-            interface_id: 0
+            interface_id: 0,
         }
     }
 }
@@ -108,18 +108,18 @@ impl Packet for ItemOption {
                 self.item_id = src.get_u16t(Transform::Add);
                 self.slot = src.get_u16t_le(Transform::Add);
                 self.interface_id = src.get_u16t_le(Transform::Add);
-            },
+            }
             3 => {
                 self.interface_id = src.get_u16t_le(Transform::Add);
                 self.slot = src.get_u16_le();
                 self.item_id = src.get_u16t(Transform::Add);
-            },
+            }
             4 => {
                 self.item_id = src.get_u16t(Transform::Add);
                 self.interface_id = src.get_u16();
                 self.slot = src.get_u16t(Transform::Add);
             }
-            _ => anyhow::bail!("invalid ItemOption index")
+            _ => anyhow::bail!("invalid ItemOption index"),
         }
         Ok(())
     }
@@ -130,7 +130,7 @@ impl Packet for ItemOption {
             1 => PacketType::SecondItemOption,
             2 => PacketType::ThirdItemOption,
             3 => PacketType::FourthItemOption,
-            _ => PacketType::FifthItemOption
+            _ => PacketType::FifthItemOption,
         }
     }
 }
@@ -161,7 +161,7 @@ impl Default for ItemAction {
             action_index: 0,
             item_id: 0,
             slot: 0,
-            interface_id: 0
+            interface_id: 0,
         }
     }
 }
@@ -183,18 +183,18 @@ impl Packet for ItemAction {
                 self.interface_id = src.get_u16_le();
                 self.item_id = src.get_u16t(Transform::Add);
                 self.slot = src.get_u16t(Transform::Add);
-            },
+            }
             3 => {
                 self.slot = src.get_u16t(Transform::Add);
                 self.interface_id = src.get_u16();
                 self.item_id = src.get_u16t(Transform::Add);
-            },
+            }
             4 => {
                 self.slot = src.get_u16_le();
                 self.interface_id = src.get_u16t(Transform::Add);
                 self.slot = src.get_u16_le();
             }
-            _ => anyhow::bail!("invalid ItemOption index")
+            _ => anyhow::bail!("invalid ItemOption index"),
         }
         Ok(())
     }
@@ -205,7 +205,7 @@ impl Packet for ItemAction {
             1 => PacketType::SecondItemAction,
             2 => PacketType::ThirdItemAction,
             3 => PacketType::FourthItemAction,
-            _ => PacketType::FifthItemAction
+            _ => PacketType::FifthItemAction,
         }
     }
 }
@@ -246,7 +246,7 @@ impl Packet for NpcAction {
             2 => self.npc_id = src.get_u16t_le(Transform::Add),
             3 => self.npc_id = src.get_u16(),
             4 => self.npc_id = src.get_u16_le(),
-            _ => anyhow::bail!("invalid NpcAction index")
+            _ => anyhow::bail!("invalid NpcAction index"),
         }
         Ok(())
     }
@@ -297,7 +297,7 @@ impl Packet for PlayerAction {
             2 => self.player_id = src.get_u16_le(),
             3 => self.player_id = src.get_u16_le(),
             4 => self.player_id = src.get_u16_le(),
-            _ => anyhow::bail!("invalid NpcAction index")
+            _ => anyhow::bail!("invalid NpcAction index"),
         }
         Ok(())
     }
@@ -330,7 +330,7 @@ pub struct ObjectAction {
     pub action_index: u16,
     pub object_id: u16,
     pub x: u16,
-    pub y: u16
+    pub y: u16,
 }
 
 impl Default for ObjectAction {
@@ -339,7 +339,7 @@ impl Default for ObjectAction {
             action_index: 0,
             object_id: 0,
             x: 0,
-            y: 0
+            y: 0,
         }
     }
 }
@@ -362,7 +362,7 @@ impl Packet for ObjectAction {
                 self.y = src.get_u16();
                 self.object_id = src.get_u16t_le(Transform::Add);
             }
-            _ => anyhow::bail!("invalid ObjectAction index")
+            _ => anyhow::bail!("invalid ObjectAction index"),
         }
         Ok(())
     }
@@ -371,7 +371,7 @@ impl Packet for ObjectAction {
         match self.action_index {
             0 => PacketType::FirstObjectAction,
             1 => PacketType::SecondObjectAction,
-            _ => PacketType::ThirdObjectAction
+            _ => PacketType::ThirdObjectAction,
         }
     }
 }
@@ -381,7 +381,7 @@ impl From<ObjectAction> for GameplayEvent {
         match packet.action_index {
             0 => GameplayEvent::FirstObjectAction(packet),
             1 => GameplayEvent::SecondObjectAction(packet),
-            _ => GameplayEvent::ThirdObjectAction(packet)
+            _ => GameplayEvent::ThirdObjectAction(packet),
         }
     }
 }

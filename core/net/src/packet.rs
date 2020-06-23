@@ -1,7 +1,7 @@
+use crate::packets::PacketEvent;
 use ahash::AHashMap;
 use bytes::BytesMut;
 use once_cell::sync::Lazy;
-use crate::packets::PacketEvent;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct PacketId {
