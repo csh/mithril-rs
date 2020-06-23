@@ -13,16 +13,14 @@ use ahash::AHashMap;
 use bytes::{Buf, BufMut, BytesMut};
 use mithril_core::net::{
     self,
-    packets::{
-        HandshakeConnectResponse, HandshakeExchangeKey, LoginResponse
-    },
+    packets::{HandshakeConnectResponse, HandshakeExchangeKey, LoginResponse},
 };
 use mithril_server_types::auth::Authenticator;
 use mithril_server_types::{ConnectionIsaac, NetworkAddress, NewPlayer};
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 
-pub use mithril_core::net::packets::{PacketEvent, GameplayEvent, HandshakeEvent};
+pub use mithril_core::net::packets::{GameplayEvent, HandshakeEvent, PacketEvent};
 pub type EntityPacketEvent = (Entity, PacketEvent);
 pub type PacketEventChannel = EventChannel<EntityPacketEvent>;
 
@@ -54,9 +52,7 @@ impl<'a, 'b> SystemBundle<'a, 'b> for MithrilNetworkBundle {
 
         builder.add(
             MithrilHandshakeSystem {
-                reader: world
-                    .fetch_mut::<PacketEventChannel>()
-                    .register_reader(),
+                reader: world.fetch_mut::<PacketEventChannel>().register_reader(),
             },
             "handshake_system",
             &[],
@@ -287,19 +283,21 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
             if let PacketEvent::Handshake(HandshakeEvent::HandshakeHello(_)) = event {
                 log::info!("First handshake packet received");
                 net.send_raw(player, HandshakeExchangeKey::default());
-            } else if let PacketEvent::Handshake(HandshakeEvent::HandshakeAttemptConnect(attempt)) = event {
+            } else if let PacketEvent::Handshake(HandshakeEvent::HandshakeAttemptConnect(attempt)) =
+                event
+            {
                 log::info!("Second handshake packet received");
 
                 let authenticated = match auth
                     .authenticate(attempt.username.clone(), attempt.password.clone())
-                    {
-                        Ok(result) => result,
-                        Err(cause) => {
-                            log::error!("'{}' authentication failed; {}", attempt.username, cause);
-                            net.send_raw(player, HandshakeConnectResponse(LoginResponse::SessionBad));
-                            continue;
-                        }
-                    };
+                {
+                    Ok(result) => result,
+                    Err(cause) => {
+                        log::error!("'{}' authentication failed; {}", attempt.username, cause);
+                        net.send_raw(player, HandshakeConnectResponse(LoginResponse::SessionBad));
+                        continue;
+                    }
+                };
 
                 if !authenticated {
                     net.send_raw(

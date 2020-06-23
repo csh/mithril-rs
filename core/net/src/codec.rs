@@ -2,8 +2,8 @@ use bytes::{Buf, BufMut, BytesMut};
 use rand::Rng;
 use rand_isaac::IsaacRng;
 
-use crate::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 use crate::packets::PacketEvent;
+use crate::{Packet, PacketDirection, PacketId, PacketLength, PacketStage, PacketType};
 
 pub fn encode_packet(
     isaac: Option<&mut IsaacRng>,
@@ -13,11 +13,17 @@ pub fn encode_packet(
     log::info!("Encoding a {:?}", packet.get_type());
     let isaac = match isaac {
         Some(isaac) => {
-            debug_assert!(packet.is_gameplay(), "encoding requested using the ISAAC generator was not a gameplay packet");
+            debug_assert!(
+                packet.is_gameplay(),
+                "encoding requested using the ISAAC generator was not a gameplay packet"
+            );
             isaac
-        },
+        }
         None => {
-            debug_assert!(packet.is_handshake(), "encoding requested without the ISAAC generator was not a handshake packet");
+            debug_assert!(
+                packet.is_handshake(),
+                "encoding requested without the ISAAC generator was not a handshake packet"
+            );
             packet.try_write(dst)?;
             return Ok(());
         }
@@ -85,10 +91,10 @@ pub fn decode_packet(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packets::ServerMessage;
     use crate::packets::GameplayEvent;
-    use crate::packets::HandshakeEvent;
     use crate::packets::HandshakeConnectResponse;
+    use crate::packets::HandshakeEvent;
+    use crate::packets::ServerMessage;
     use rand::SeedableRng;
 
     #[test]
@@ -97,7 +103,12 @@ mod tests {
 
         let mut buf = BytesMut::new();
         assert!(
-            encode_packet(None, HandshakeEvent::HandshakeConnectResponse(packet).into(), &mut buf).is_ok(),
+            encode_packet(
+                None,
+                HandshakeEvent::HandshakeConnectResponse(packet).into(),
+                &mut buf
+            )
+            .is_ok(),
             "HandshakeConnectResponse is encodable"
         );
 
@@ -115,7 +126,12 @@ mod tests {
 
         let mut buf = BytesMut::new();
         assert!(
-            encode_packet(encode_isaac.as_mut(), GameplayEvent::ServerMessage(packet).into(), &mut buf).is_ok(),
+            encode_packet(
+                encode_isaac.as_mut(),
+                GameplayEvent::ServerMessage(packet).into(),
+                &mut buf
+            )
+            .is_ok(),
             "ServerMessage is encodable"
         );
         println!("{:02X}", buf);

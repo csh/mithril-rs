@@ -9,12 +9,14 @@ use ahash::AHashMap;
 use mithril_core::{
     net::packets::{
         AddPlayer, Appearance, AppearanceType, EntityMovement, Equipment, Item, NpcSynchronization,
-        PlayerSynchronization, PlayerUpdate, SyncBlocks, RegionChange
+        PlayerSynchronization, PlayerUpdate, RegionChange, SyncBlocks,
     },
     pos::{Direction, Position},
 };
 
-use mithril_server_net::{MithrilTransportResource, EntityPacketEvent, PacketEventChannel, GameplayEvent, PacketEvent};
+use mithril_server_net::{
+    EntityPacketEvent, GameplayEvent, MithrilTransportResource, PacketEvent, PacketEventChannel,
+};
 use mithril_server_types::{CollisionDetector, Pathfinder, PreviousPosition, VisiblePlayers};
 
 #[cfg(feature = "profiler")]
@@ -241,9 +243,7 @@ pub struct EntityPathfindingSystemDesc;
 impl<'a, 'b> SystemDesc<'a, 'b, EntityPathfindingSystem> for EntityPathfindingSystemDesc {
     fn build(self, world: &mut World) -> EntityPathfindingSystem {
         <EntityPathfindingSystem as System<'_>>::SystemData::setup(world);
-        let reader = world
-            .fetch_mut::<PacketEventChannel>()
-            .register_reader();
+        let reader = world.fetch_mut::<PacketEventChannel>().register_reader();
         EntityPathfindingSystem::new(reader)
     }
 }

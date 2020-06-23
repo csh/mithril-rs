@@ -7,9 +7,9 @@ pub use handshake::*;
 use crate::packet::PacketFactory;
 use crate::{PacketLength, PacketType};
 
+mod events;
 mod game;
 mod handshake;
-mod events;
 
 pub use events::*;
 
@@ -34,10 +34,13 @@ macro_rules! item_option_factory {
     ($map:ident, $opt:ident, $idx:literal) => {
         $map.insert(
             PacketType::$opt,
-            PacketFactory::new(|| GameplayEvent::$opt(ItemOption {
-                option_index: $idx,
-                ..Default::default()
-            }).into()),
+            PacketFactory::new(|| {
+                GameplayEvent::$opt(ItemOption {
+                    option_index: $idx,
+                    ..Default::default()
+                })
+                .into()
+            }),
         )
     };
 }
@@ -70,12 +73,15 @@ macro_rules! action_factory {
     ($map:ident, $opt:ident, $impl:ident, $idx:literal) => {
         $map.insert(
             PacketType::$opt,
-            PacketFactory::new(|| GameplayEvent::$opt($impl {
-                action_index: $idx,
-                ..Default::default()
-            }).into()),
+            PacketFactory::new(|| {
+                GameplayEvent::$opt($impl {
+                    action_index: $idx,
+                    ..Default::default()
+                })
+                .into()
+            }),
         )
-    }
+    };
 }
 
 pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = Lazy::new(|| {
@@ -140,24 +146,32 @@ pub(crate) static PACKET_FACTORIES: Lazy<AHashMap<PacketType, PacketFactory>> = 
 
     factories.insert(
         PacketType::Walk,
-        PacketFactory::new(|| GameplayEvent::Walk(Walk {
-            packet_type: PacketType::Walk,
-            path: Vec::default(),
-            running: false,
-        }).into())
+        PacketFactory::new(|| {
+            GameplayEvent::Walk(Walk {
+                packet_type: PacketType::Walk,
+                path: Vec::default(),
+                running: false,
+            })
+            .into()
+        }),
     );
     factories.insert(
         PacketType::WalkWithAnticheat,
-        PacketFactory::new(|| GameplayEvent::Walk(Walk {
-            packet_type: PacketType::WalkWithAnticheat,
-            path: Vec::default(),
-            running: false,
-        }).into())
+        PacketFactory::new(|| {
+            GameplayEvent::Walk(Walk {
+                packet_type: PacketType::WalkWithAnticheat,
+                path: Vec::default(),
+                running: false,
+            })
+            .into()
+        }),
     );
 
     factories.insert(
         PacketType::SpamPacket(PacketLength::VariableByte),
-        PacketFactory::new(|| GameplayEvent::SpamPacket(SpamPacket(PacketLength::VariableByte)).into()),
+        PacketFactory::new(|| {
+            GameplayEvent::SpamPacket(SpamPacket(PacketLength::VariableByte)).into()
+        }),
     );
     factories.insert(
         PacketType::SpamPacket(PacketLength::Fixed(0)),

@@ -72,7 +72,7 @@ impl<'a> System<'a> for SendInitialPackets {
                     SwitchTabInterface {
                         interface_id: open_tabs[i],
                         tab_id: i as u8,
-                    }
+                    },
                 );
             }
 
