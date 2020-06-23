@@ -98,7 +98,7 @@ mod tests {
         let mut buf = BytesMut::new();
         assert!(
             encode_packet(None, HandshakeEvent::HandshakeConnectResponse(packet).into(), &mut buf).is_ok(),
-            "ServerMessage is encodable"
+            "HandshakeConnectResponse is encodable"
         );
 
         println!("{:02X}", buf);
