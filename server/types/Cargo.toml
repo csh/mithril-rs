@@ -16,6 +16,7 @@ ahash = "0.3"
 rand = "0.7"
 rand_isaac = "0.2"
 indexmap = "1.4.0"
+hibitset = "0.6.3"
 
 [dev-dependencies]
 ci_info = "*"
