@@ -3,7 +3,7 @@ use bytes::buf::{Buf, BufMut};
 use bytes::BytesMut;
 use mithril_buf::Transform;
 use mithril_buf::{GameBuf, GameBufMut};
-use mithril_pos::{Direction, Position};
+use mithril_pos::{Direction, Position, Region};
 
 pub enum ObjectType {
     LengthwiseWall = 0,
@@ -23,10 +23,10 @@ pub struct RemoveObject {
     position_offset: u8,
 }
 
-impl RegionUpdatePacket for RemoveObject {}
+impl RegionUpdate for RemoveObject {}
 
 impl RemoveObject {
-    fn new(
+    pub fn new(
         object_type: ObjectType,
         orientation: Direction,
         position: &Position,
@@ -48,7 +48,7 @@ pub struct RemoveTileItem {
     id: u16,
 }
 
-impl RegionUpdatePacket for RemoveTileItem {}
+impl RegionUpdate for RemoveTileItem {}
 
 impl RemoveTileItem {
     pub fn new(item: u16, position: &Position) -> Self {
@@ -68,7 +68,7 @@ pub struct AddTileItem {
     position_offset: u8,
 }
 
-impl RegionUpdatePacket for AddTileItem {}
+impl RegionUpdate for AddTileItem {}
 
 impl AddTileItem {
     pub fn new(item: u16, amount: u16, position: &Position) -> Self {
@@ -90,7 +90,7 @@ pub struct SendObject {
     type_and_orientation: u8,
 }
 
-impl RegionUpdatePacket for SendObject {}
+impl RegionUpdate for SendObject {}
 
 impl SendObject {
     pub fn new(
@@ -119,7 +119,7 @@ pub struct AddGlobalTileItem {
     amount: u16,
 }
 
-impl RegionUpdatePacket for AddGlobalTileItem {}
+impl RegionUpdate for AddGlobalTileItem {}
 
 impl AddGlobalTileItem {
     pub fn new(id: u16, position: &Position, owner: u16, amount: u16) -> Self {
@@ -140,7 +140,7 @@ pub struct UpdateTileItem {
     amount: u16,
 }
 
-impl RegionUpdatePacket for UpdateTileItem {}
+impl RegionUpdate for UpdateTileItem {}
 
 impl UpdateTileItem {
     pub fn new(id: u16, position: &Position, old_amount: u16, amount: u16) -> Self {
@@ -161,19 +161,29 @@ fn to_offset(position: &Position) -> u8 {
 
 #[derive(Debug)]
 pub struct GroupedRegionUpdate {
-    pub position: Position,
+    pub region: Region,
     pub viewport_center: Position,
-    pub updates: Vec<Box<dyn RegionUpdatePacket>>,
+    pub updates: Vec<Box<dyn RegionUpdate>>,
 }
 
-pub trait RegionUpdatePacket: Packet + std::fmt::Debug {}
+impl GroupedRegionUpdate {
+    pub fn new(position: Position, region: Region, updates: Vec<Box<dyn RegionUpdate>>) -> Self {
+        GroupedRegionUpdate {
+            region,
+            viewport_center: position,
+            updates
+        }
+    }
+}
+
+pub trait RegionUpdate: Packet + std::fmt::Debug {}
 
 impl Packet for GroupedRegionUpdate {
     fn try_write(&self, buffer: &mut BytesMut) -> anyhow::Result<()> {
         let vx = self.viewport_center.get_x() / 8 - 6;
         let vy = self.viewport_center.get_y() / 8 - 6;
-        let dx = (((self.position.get_x() / 8) - vx) * 8) as u8;
-        let dy = (((self.position.get_y() / 8) - vy) * 8) as u8;
+        let dx = ((self.region.x - vx) * 8) as u8;
+        let dy = ((self.region.y - vy) * 8) as u8;
         buffer.put_u8(dy);
         buffer.put_u8t(dx, Transform::Negate);
         let result: Result<Vec<_>, _> = self
@@ -273,7 +283,7 @@ mod tests {
         const PACKET: [u8; 2] = [0x30, 0xd0];
         let mut buf = BytesMut::new();
         GroupedRegionUpdate {
-            position: Position::default(),
+            region: (&Position::default()).into(),
             viewport_center: Position::default(),
             updates: vec![],
         }
@@ -299,7 +309,7 @@ mod tests {
         .expect("Direction was none");
 
         GroupedRegionUpdate {
-            position: Position::default(),
+            region: (&Position::default()).into(),
             viewport_center: Position::default(),
             updates: vec![Box::new(add_global), Box::new(remove_obj)],
         }

@@ -27,6 +27,21 @@ impl Direction {
     }
 }
 
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
+pub struct Region {
+   pub x: i16,
+   pub y: i16, 
+}
+
+impl From<&Position> for Region {
+    fn from(pos: &Position) -> Region {
+        Region {
+            x: pos.get_x() / 8,
+            y: pos.get_y() / 8,
+        }
+    } 
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Position {
     x: i16,

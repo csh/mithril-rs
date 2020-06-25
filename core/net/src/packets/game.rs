@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::PacketLength;
 use mithril_codegen::EventFromPacket;
-use mithril_pos::Position;
+use mithril_pos::{Position, Region};
 
 mod sync;
 use crate::packets::GameplayEvent;
@@ -812,23 +812,24 @@ impl Packet for RegionChange {
     }
 }
 
-#[derive(Debug, EventFromPacket)]
+#[derive(Packet, Debug, EventFromPacket)]
 pub struct ClearRegion {
-    pub player: Position,
-    pub region: Position,
+    #[transform = "negate"]
+    local_x: u8,
+    #[transform = "subtract"]
+    local_y: u8,
 }
 
-impl Packet for ClearRegion {
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        let (local_x, local_y) = self.region.get_relative(self.player);
-        src.put_u8t(local_x, Transform::Negate);
-        src.put_u8t(local_y, Transform::Subtract);
-        Ok(())
-    }
+impl ClearRegion {
+    pub fn new(player: Position, region: Region) -> Self {
+        let local_x = (region.x - (player.get_x() / 8 - 6) * 8) as u8;
+        let local_y = (region.y - (player.get_y() / 8 - 6) * 8) as u8;
 
-    fn get_type(&self) -> PacketType {
-        PacketType::ClearRegion
-    }
+        ClearRegion {
+            local_x,
+            local_y    
+        }
+    }   
 }
 
 #[derive(Debug, EventFromPacket)]

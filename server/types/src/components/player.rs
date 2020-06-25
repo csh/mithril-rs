@@ -2,8 +2,9 @@ use indexmap::set::IndexSet;
 use specs::world::Index;
 use specs::{Component, NullStorage, VecStorage};
 use hibitset::BitSet;
+use ahash::AHashSet;
 
-use mithril_core::pos::Position;
+use mithril_core::pos::{Position, Region};
 
 #[derive(Default, Debug)]
 pub struct VisiblePlayers(pub IndexSet<Index>);
@@ -24,6 +25,10 @@ pub struct Player;
 #[storage(VecStorage)]
 pub struct VisibleObjects(pub BitSet);
 
+#[derive(Component)]
+#[storage(VecStorage)]
+pub struct VisibleRegions(pub AHashSet<Region>);
+
 const VIEWPORT_SIZE: i16 = 13 * 8;
 
 #[derive(Default, Component)]
@@ -40,6 +45,10 @@ impl Viewport {
     }
 
     pub fn contains(&self, position: &Position) -> bool {
+        if position.get_plane() != self.center.get_plane() {
+            return false;    
+        }
+        
         let min_vx = (self.center.get_x() / 8 - 6) * 8;
         let min_vy = (self.center.get_y() / 8 - 6) * 8;
         let max_vx = min_vx + VIEWPORT_SIZE;
