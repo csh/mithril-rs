@@ -45,13 +45,13 @@ impl<'a> System<'a> for RegionUpdateSystem {
 
     fn run(
         &mut self,
-        (entities, position, _viewport, visible_regions, static_flag, deleted, object_data, mut visible, mut net): Self::SystemData,
+        (entities, position, _viewport, mut visible_regions, static_flag, deleted, object_data, mut visible, mut net): Self::SystemData,
     ) {
 
         // static objects
-        let _ = (&entities, &position, &mut visible_regions, &mut visible)
+        let player_with_updates = (&entities, &position, &mut visible_regions, &mut visible)
             .par_join()
-            .for_each(|(player, player_position, mut visible_regions, visible)| {
+            .map(|(player, player_position, mut visible_regions, visible)| {
                 let viewport = Viewport::new(*player_position);
 
                 let deleted_static: AHashMap<Region, Vec<(Entity, &Position, &WorldObjectData, bool)>> = (&entities, &static_flag, &deleted, &position, &object_data, (&visible.0).maybe())
@@ -82,69 +82,118 @@ impl<'a> System<'a> for RegionUpdateSystem {
                 currently_visible.extend(deleted_static.keys().clone());
                 currently_visible.extend(visible_dynamic.keys().clone());
                 
-                currently_visible.iter()
-                    .for_each(|region| {
-                        if !visible_regions.0.contains(region) {
-                            net.send(player, ClearRegion::new(player_position, region));
-                        }
+                let updates = currently_visible.iter()
+                    .map(|region| {
+                        let clear_region = if !visible_regions.0.contains(region) {
+                            Some(ClearRegion::new(*player_position, *region))
+                        } else {
+                            None
+                        };
 
                         let static_updates = if let Some(deleted_static) = deleted_static.get(region) {
-                            deleted_static.iter()
+                                EitherIter::Left(deleted_static.into_iter()
                                 .filter(|(_, _, _, known)| !known)
-                                .map(|entity, pos, data, _| {                         
+                                .map(|(entity, pos, data, _)| -> Box<dyn RegionUpdate> {                         
                                     match data {
-                                        WorldObjectData::Object {object_type, orientation} => {
-                                            RemoveObject::new(object_type, orientation, pos) 
+                                        WorldObjectData::Object {id, object_type, orientation} => {
+                                            Box::new(RemoveObject::new(*object_type, *orientation, pos).expect("Wrong orientation?"))
                                         },
                                         // This can't even be, but leaving it for completion
-                                        WorldObjectData::TileItem {item, amount} => {
-                                            RemoveTileItem::new(item, pos)    
+                                        WorldObjectData::TileItem(data) => {
+                                            Box::new(RemoveTileItem::new(data.item, pos))
                                         }
                                     }
-                                });
+                                }))
                         } else {
-                            iter::empty::<Box<dyn RegionUpdate>>()
+                            EitherIter::Right(std::iter::empty::<Box<dyn RegionUpdate>>())
                         };
 
-                        let dynamic_updates = if let Some(visible_dynamic) = visible_dynamic.get(region) {
-                            visible_dynamic.iter()
+                        let dynamic_updates
+                            = if let Some(visible_dynamic) = visible_dynamic.get(region) {
+                                EitherIter::Left(visible_dynamic.into_iter()
                                 // Check if updated here
-                                .filter(|(_, deleted, _, _, known)| known != deleted)
-                                .map(|(entity, deleted, pos, data, _)| {
-                                    if deleted {
-                                        match data {
-                                            WorldObjectData::Object {object_type, orientation} => {
-                                                RemoveObject::new(object_type, orientation, pos) 
-                                            },
-                                            WorldObjectData::TileItem {item, amount} => {
-                                                RemoveTileItem::new(item, pos)    
+                                .filter(|(_, deleted, _, data, known)| Self::has_updates(*deleted, *known, data))
+                                .map(|(_entity, deleted, pos, data, _)| {
+                                    match data {
+                                        WorldObjectData::Object {id, object_type, orientation } => {
+                                            let b: Box<dyn RegionUpdate> = if *deleted {
+                                                Box::new(RemoveObject::new(*object_type, *orientation, pos).expect("Bad orientation"))
+                                            } else {
+                                                Box::new(SendObject::new(*id, *object_type, *orientation, pos).expect("Bad orientation"))
+                                            };
+                                            b
+                                        },
+                                        WorldObjectData::TileItem(data) => {
+                                            if *deleted {
+                                                Box::new(RemoveTileItem::new(data.item, pos))
+                                            } else {
+                                                let b: Box<dyn RegionUpdate> = match data.get_old_amount() {
+                                                    Some(old_amount) => Box::new(
+                                                        UpdateTileItem::new(data.item, pos, data.get_amount(), old_amount)
+                                                    ),
+                                                    None => Box::new(
+                                                        AddTileItem::new(data.item, data.get_amount(), pos)
+                                                    ),
+                                                };
+                                                b
                                             }
-                                        }
-                                    } else { // if new
-                                        match data {
-                                            WorldObjectData::Object {object_type, orientation} => {
-                                                SendObject::new(0, object_type, orientation, pos)  
-                                            },
-                                            WorldObjectData::TileItem {item, amount} => {
-                                                AddTileItem::new(item, amount, pos)
-                                            }
-                                        }
+                                        },    
                                     }
-                                })
+                                }))
                         } else {
-                            iter::empty::<Box<dyn RegionUpdate>>()    
+                            EitherIter::Right(std::iter::empty::<Box<dyn RegionUpdate>>())
                         };
-                        net.send(player, 
-                            GroupedRegionUpdate::new(
-                                player_position,
-                                region,
-                                static_updates.extend(dynamic_updates).collect()
-                            )
-                        );
-                    });
-
+                        
+                        
+                        (clear_region, GroupedRegionUpdate::new(
+                            *player_position,
+                            *region,
+                            static_updates.chain(dynamic_updates).collect(),
+                        ))
+                    }); 
 
                 (*visible_regions).0 = currently_visible;
+                (player, updates)
             });
+
+        (&entities, &deleted, !&static_flag)
+            .join()
+            .for_each(|(entity, _, _)| {
+                entities.delete(entity); 
+            })
    }
+}
+
+impl RegionUpdateSystem {
+    fn has_updates(known: bool, deleted: bool, data: &WorldObjectData) -> bool{
+        if known != deleted {
+            true
+        } else {
+            match data {
+                WorldObjectData::Object{..} => false,
+                WorldObjectData::TileItem(data) => {
+                    match data.get_old_amount() {
+                        Some(amount) => amount != data.get_amount(),
+                        None => false,    
+                    }
+                }
+            }
+        }
+    }
+}
+
+enum EitherIter<A, B, T> where A: Iterator<Item = T>, B: Iterator<Item = T> {
+    Left(A),
+    Right(B) 
+}
+
+impl<T, A, B> Iterator for EitherIter<A, B, T> where A: Iterator<Item = T>, B: Iterator<Item = T>{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Left(a) => a.next(),
+            Self::Right(b) => b.next(),    
+        }
+    } 
 }

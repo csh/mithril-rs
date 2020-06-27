@@ -2,7 +2,7 @@ use specs::{Component, VecStorage};
 use std::fmt::Debug;
 use std::ops::{Add, Sub};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Direction {
     None = -1,
     NorthWest = 0,

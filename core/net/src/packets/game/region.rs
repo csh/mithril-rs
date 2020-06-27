@@ -5,6 +5,7 @@ use mithril_buf::Transform;
 use mithril_buf::{GameBuf, GameBufMut};
 use mithril_pos::{Direction, Position, Region};
 
+#[derive(Debug, Clone, Copy)]
 pub enum ObjectType {
     LengthwiseWall = 0,
     TriangularCorner = 1,

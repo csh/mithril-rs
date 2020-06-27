@@ -827,7 +827,7 @@ impl ClearRegion {
 
         ClearRegion {
             local_x,
-            local_y    
+            local_y
         }
     }   
 }
