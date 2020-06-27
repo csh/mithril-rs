@@ -49,9 +49,9 @@ impl<'a> System<'a> for RegionUpdateSystem {
     ) {
 
         // static objects
-        let player_with_updates = (&entities, &position, &mut visible_regions, &mut visible)
+        let player_with_updates: Vec<_> = (&entities, &position, &mut visible_regions, &mut visible)
             .par_join()
-            .map(|(player, player_position, mut visible_regions, visible)| {
+            .map(|(player, player_position, visible_regions, visible)| {
                 let viewport = Viewport::new(*player_position);
 
                 let deleted_static: AHashMap<Region, Vec<(Entity, &Position, &WorldObjectData, bool)>> = (&entities, &static_flag, &deleted, &position, &object_data, (&visible.0).maybe())
@@ -78,24 +78,24 @@ impl<'a> System<'a> for RegionUpdateSystem {
                         map
                     });
 
-                let mut currently_visible = AHashSet::new();
+                let mut currently_visible: AHashSet<Region> = AHashSet::new();
                 currently_visible.extend(deleted_static.keys().clone());
                 currently_visible.extend(visible_dynamic.keys().clone());
                 
-                let updates = currently_visible.iter()
+                let updates: Vec<_> = currently_visible.iter()
                     .map(|region| {
-                        let clear_region = if !visible_regions.0.contains(region) {
+                        let clear_region = if !visible_regions.0.contains(&region) {
                             Some(ClearRegion::new(*player_position, *region))
                         } else {
                             None
                         };
 
-                        let static_updates = if let Some(deleted_static) = deleted_static.get(region) {
+                        let static_updates = if let Some(deleted_static) = deleted_static.get(&region) {
                                 EitherIter::Left(deleted_static.into_iter()
                                 .filter(|(_, _, _, known)| !known)
-                                .map(|(entity, pos, data, _)| -> Box<dyn RegionUpdate> {                         
+                                .map(|(_entity, pos, data, _)| -> Box<dyn RegionUpdate> {                         
                                     match data {
-                                        WorldObjectData::Object {id, object_type, orientation} => {
+                                        WorldObjectData::Object {id: _, object_type, orientation} => {
                                             Box::new(RemoveObject::new(*object_type, *orientation, pos).expect("Wrong orientation?"))
                                         },
                                         // This can't even be, but leaving it for completion
@@ -109,7 +109,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
                         };
 
                         let dynamic_updates
-                            = if let Some(visible_dynamic) = visible_dynamic.get(region) {
+                            = if let Some(visible_dynamic) = visible_dynamic.get(&region) {
                                 EitherIter::Left(visible_dynamic.into_iter()
                                 // Check if updated here
                                 .filter(|(_, deleted, _, data, known)| Self::has_updates(*deleted, *known, data))
@@ -150,16 +150,35 @@ impl<'a> System<'a> for RegionUpdateSystem {
                             *region,
                             static_updates.chain(dynamic_updates).collect(),
                         ))
-                    }); 
+                    }).collect();
+                (player, currently_visible.clone(), updates)
+            }).collect();
 
-                (*visible_regions).0 = currently_visible;
-                (player, updates)
+        let mut visible: AHashMap<_, _> = AHashMap::new();
+        for (player, currently_visible, updates) in player_with_updates {
+            for (clear_region, grouped_updates) in updates {
+                if let Some(clear_region) = clear_region {
+                    net.send(player, clear_region);    
+                }
+                net.send(player, grouped_updates);
+            }
+            visible.insert(player.id(), currently_visible);
+        }
+
+        (&entities, &mut visible_regions)
+            .join()
+            .for_each(|(player, mut visible_regions)| {
+                if let Some(currently_visible) = visible.remove(&player.id()) {
+                    visible_regions.0 = currently_visible;
+                }
             });
 
         (&entities, &deleted, !&static_flag)
             .join()
             .for_each(|(entity, _, _)| {
-                entities.delete(entity); 
+                if let Err(_) = entities.delete(entity) {
+                    log::info!("Failed to delete old entity?");
+                }
             })
    }
 }
