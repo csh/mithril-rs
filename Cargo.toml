@@ -2,6 +2,7 @@
 members = [
     "codegen",
     "core",
+    "core/items",
     "core/net",
     "core/text",
     "core/pos",

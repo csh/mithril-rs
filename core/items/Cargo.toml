@@ -1,0 +1,25 @@
+[package]
+name = "mithril-item"
+version = "0.1.0"
+authors = ["Connor Spencer Harries <connor@harmony-labs.org.uk>"]
+edition = "2018"
+
+[features]
+default = ["reqwest", "serde_json"]
+
+[dependencies]
+mithril-fs = { path = "../fs" }
+thiserror = "1.0"
+ahash = "0.3"
+
+[dependencies.serde_json]
+version = "1.0"
+optional = true
+
+[dependencies.reqwest]
+version = "0.10"
+optional = true
+features = ["blocking", "json"]
+
+[dev-dependencies]
+ci_info = "*"

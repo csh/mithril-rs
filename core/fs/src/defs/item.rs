@@ -117,12 +117,12 @@ impl ItemDefinition {
         self.value
     }
 
-    pub fn ground_action(&self, index: usize) -> Option<&String> {
-        self.ground_actions[index].as_ref()
+    pub fn ground_action(&self, index: usize) -> Option<String> {
+        self.ground_actions[index].clone()
     }
 
-    pub fn inventory_action(&self, index: usize) -> Option<&String> {
-        self.inventory_actions[index].as_ref()
+    pub fn inventory_action(&self, index: usize) -> Option<String> {
+        self.inventory_actions[index].clone()
     }
 
     pub fn team(&self) -> Option<u8> {
