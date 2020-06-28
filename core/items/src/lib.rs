@@ -3,25 +3,28 @@ mod items;
 
 pub use errors::ItemLookupError;
 pub use items::Items;
+use std::hash::Hash;
 
-#[derive(Debug, Hash)]
+pub const MAX_ITEM_SIZE: u32 = i32::MAX as u32;
+
+#[derive(Debug, Copy, Clone)]
 pub enum Item {
     Single(u16),
     Stackable(u16, u32),
 }
 
 impl Item {
-    pub fn id(&self) -> u16 {
-        match *self {
+    pub fn id(self) -> u16 {
+        match self {
             Self::Single(id) => id,
             Self::Stackable(id, _) => id,
         }
     }
 
-    pub fn get_quantity(&self) -> u32 {
+    pub fn get_quantity(self) -> u32 {
         match self {
             Self::Single(_) => 1,
-            Self::Stackable(_, quantity) => *quantity,
+            Self::Stackable(_, quantity) => quantity,
         }
     }
 
@@ -29,52 +32,43 @@ impl Item {
         match self {
             Self::Single(id) => Err(ItemLookupError::NotStackable(*id)),
             Self::Stackable(_, ref mut quantity) => {
-                // Maximum is i32::MAX but we also don't require negative values.
-                *quantity = std::cmp::min(new_quantity, i32::MAX as u32);
+                *quantity = std::cmp::min(new_quantity, MAX_ITEM_SIZE);
                 Ok(())
             }
+        }
+    }
+
+    pub fn is_stackable(self) -> bool {
+        match self {
+            Self::Single(_) => false,
+            Self::Stackable(_, _) => true,
         }
     }
 }
 
 impl PartialEq<u16> for Item {
     fn eq(&self, other: &u16) -> bool {
-        match self {
-            Item::Single(id) => id == other,
-            Item::Stackable(id, _) => id == other,
-        }
+        self.id() == *other
+    }
+}
+
+impl Hash for Item {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        state.write_u16(self.id());
+        state.write_u32(self.get_quantity());
     }
 }
 
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
-        let (left_id, left_quantity) = match *self {
-            Item::Single(id) => (id, 1),
-            Item::Stackable(id, quantity) => (id, quantity),
-        };
-
-        let (right_id, right_quantity) = match *other {
-            Item::Single(id) => (id, 1),
-            Item::Stackable(id, quantity) => (id, quantity),
-        };
-        left_id == right_id && left_quantity == right_quantity
+        self.id() == other.id() && self.get_quantity() == other.get_quantity()
     }
 }
 
 impl PartialOrd for Item {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let (left_id, left_quantity) = match *self {
-            Item::Single(id) => (id, 1),
-            Item::Stackable(id, quantity) => (id, quantity),
-        };
-
-        let (right_id, right_quantity) = match *other {
-            Item::Single(id) => (id, 1),
-            Item::Stackable(id, quantity) => (id, quantity),
-        };
-
-        if left_id == right_id {
-            left_quantity.partial_cmp(&right_quantity)
+        if self.id() == other.id() {
+            self.get_quantity().partial_cmp(&other.get_quantity())
         } else {
             None
         }

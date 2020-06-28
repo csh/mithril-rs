@@ -58,7 +58,7 @@ impl Items {
     impl_delegate_getter!(bool, is_noted);
     impl_delegate_getter!(i32, value);
 
-    pub fn ground_action(&self, item: &Item, index: usize) -> Result<Option<String>> {
+    pub fn ground_action(&self, item: Item, index: usize) -> Result<Option<String>> {
         if index >= 5 {
             return Err(ItemLookupError::IndexOutOfBounds(index));
         }
@@ -67,7 +67,7 @@ impl Items {
         Ok(def.ground_action(index))
     }
 
-    pub fn inventory_action(&self, item: &Item, index: usize) -> Result<Option<String>> {
+    pub fn inventory_action(&self, item: Item, index: usize) -> Result<Option<String>> {
         if index >= 5 {
             return Err(ItemLookupError::IndexOutOfBounds(index));
         }

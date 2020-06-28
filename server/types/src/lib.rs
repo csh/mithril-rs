@@ -1,6 +1,8 @@
 pub mod auth;
 mod collision_detection;
-pub mod components;
+mod components;
+mod inventory;
 
 pub use collision_detection::CollisionDetector;
 pub use components::*;
+pub use inventory::*;
