@@ -27,19 +27,17 @@ pub struct Item {
 
 #[derive(Debug, Default, PartialEq)]
 pub struct Equipment {
+    pub hat: Option<Item>,
+    pub cape: Option<Item>,
+    pub amulet: Option<Item>,
+    pub weapon: Option<Item>,
     pub chest: Option<Item>,
     pub shield: Option<Item>,
     pub legs: Option<Item>,
-    pub hat: Option<Item>,
     pub hands: Option<Item>,
     pub feet: Option<Item>,
-}
-
-impl Equipment {
-    #[allow(unused_variables)]
-    fn get_slot(&self, slot: u8) -> Option<Item> {
-        None
-    }
+    pub ring: Option<Item>,
+    pub arrows: Option<Item>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -95,6 +93,16 @@ impl Appearance {
     }
 }
 
+macro_rules! item_or_zero {
+    ($item:expr, $buffer:expr) => {
+        if let Some(item) = $item {
+            $buffer.put_u16(0x200 + item.id);
+        } else {
+            $buffer.put_u8(0);    
+        }
+    }
+}
+
 impl Appearance {
     fn write_appearance(
         &self,
@@ -103,13 +111,10 @@ impl Appearance {
         equipment: &Equipment,
         style: &[u16],
     ) {
-        for i in 0..4 {
-            if let Some(item) = equipment.get_slot(i) {
-                buf.put_u16(0x200 + item.id);
-            } else {
-                buf.put_u8(0);
-            }
-        }
+        item_or_zero!(&equipment.hat, buf);
+        item_or_zero!(&equipment.cape, buf);
+        item_or_zero!(&equipment.amulet, buf);
+        item_or_zero!(&equipment.weapon, buf);
 
         buf.put_u16(if let Some(item) = &equipment.chest {
             (0x200 + item.id) as u16
@@ -117,16 +122,12 @@ impl Appearance {
             (0x100 + style[2]) as u16
         });
 
-        if let Some(item) = &equipment.shield {
-            buf.put_u16(0x200 + item.id);
-        } else {
-            buf.put_u8(0);
-        }
+        item_or_zero!(&equipment.shield, buf); 
 
-        if let Some(_item) = &equipment.chest {
+        /*if let Some(_item) = &equipment.chest {
             // && item.is_full_body() {
             buf.put_u8(0);
-        } else {
+        } else*/ {
             buf.put_u16(0x100 + style[3]);
         }
 
@@ -136,10 +137,10 @@ impl Appearance {
             (0x100 + style[5]) as u16
         });
 
-        if let Some(_item) = &equipment.hat {
+        /*if let Some(_item) = &equipment.hat {
             // && (item.is_full_hat() || item.is_full_mask()) {
             buf.put_u8(0);
-        } else {
+        } else */ {
             buf.put_u16(0x100 + style[0]);
         }
 
@@ -157,12 +158,14 @@ impl Appearance {
 
         if gender != 0 {
             buf.put_u8(0);
-        } else if let Some(_item) = &equipment.hat {
+        } else {
+            buf.put_u16(0x100 + style[1]); 
+        } /*if let Some(_item) = &equipment.hat {
             // && item.is_full_mask(){
             buf.put_u8(0);
         } else {
             buf.put_u16(0x100 + style[1]);
-        }
+        }*/
     }
 }
 
