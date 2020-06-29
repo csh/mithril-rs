@@ -27,3 +27,6 @@ features = ["empty", "network"]
 [dependencies.thread_profiler]
 version = "0.3"
 optional = true
+
+[dev-dependencies]
+amethyst_test = "0.6.0"

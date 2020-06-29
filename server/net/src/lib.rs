@@ -321,6 +321,7 @@ impl<'a> System<'a> for MithrilHandshakeSystem {
     }
 }
 
+
 #[derive(Default)]
 pub struct MithrilTransportResource {
     events: VecDeque<EntityPacketEvent>,
@@ -335,6 +336,10 @@ impl MithrilTransportResource {
     pub fn send_raw<I: Into<HandshakeEvent>>(&mut self, player: Entity, packet: I) {
         let packet = packet.into();
         self.events.push_back((player, packet.into()));
+    }
+ 
+    pub fn queued_packets(&self) -> &VecDeque<EntityPacketEvent> {
+        &self.events
     }
 }
 

@@ -284,3 +284,118 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use amethyst_test::prelude::*;
+    use amethyst::{GameData, StateEvent, StateEventReader};
+    use mithril_core::{
+        net::packets::ObjectType,
+        pos::*
+    };
+    use mithril_server_types::components::TileItemData;
+
+    use super::*;
+    
+    fn bootstrap() -> AmethystApplication<GameData<'static, 'static>, StateEvent, StateEventReader> {
+        AmethystApplication::blank()
+            .with_setup(|world| {
+                world.insert(MithrilTransportResource::default()); 
+            })
+            .with_system_desc_single(RegionUpdateSystemDesc, "region_update", &[])
+            .with_effect(|world| { 
+                let static_object = world.create_entity()
+                    .with(Position::default() + (1, 1))
+                    .with(StaticObject)
+                    .with(WorldObjectData::Object{id: 0, object_type: ObjectType::Interactable, orientation: Direction::North})
+                    .build();
+
+                let dynamic_object = world.create_entity()
+                    .with(Position::default() + (2, 2))
+                    .with(WorldObjectData::Object{id: 0, object_type: ObjectType::Interactable, orientation: Direction::North})
+                    .build();
+
+                let tile_item = world.create_entity()
+                    .with(Position::default() + (3, 3))
+                    .with(WorldObjectData::TileItem(TileItemData::new(20, 1)))
+                    .build();
+
+                let mut bitset = BitSet::new();
+                bitset.add(static_object.id());
+                bitset.add(dynamic_object.id());
+                bitset.add(tile_item.id());
+
+                let mut visible_regions = AHashSet::new();
+                visible_regions.insert((&Position::default()).into());
+
+                world.create_entity()
+                    .with(Position::default())
+                    .with(VisibleRegions(visible_regions))
+                    .with(VisibleObjects(bitset))
+                    .build();
+            })
+            
+    }
+
+    #[test]
+    fn test_noop() {
+        bootstrap()
+            .with_assertion(|world| {
+                let net = world.read_resource::<MithrilTransportResource>();
+                let player: Entity = world.entities().entity(3);
+                let component = world.read_component::<VisibleRegions>();
+                let visible_regions: &VisibleRegions = component.get(player).unwrap();
+                let mut should_be_regions = AHashSet::new();
+                should_be_regions.insert((&Position::default()).into());
+
+                assert!(net.queued_packets().is_empty(), "There should be no packets");
+                assert_eq!(visible_regions.0, should_be_regions);
+            })
+            .run().expect("Running system failed"); 
+    }
+
+    #[test]
+    fn test_static_object_delete() {
+        bootstrap()
+            .with_assertion(|world| {
+                let net = world.read_resource::<MithrilTransportResource>();
+                todo!("Implement assertions");
+            })
+            .run().expect("Running system failed");
+    }
+
+    #[test]
+    fn test_dynamic_object_add() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_dynamic_object_delete() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_tile_item_add() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_tile_item_update() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_tile_item_remove() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_player_movement_newregion() {
+        todo!("Implement test");
+    }
+
+    #[test]
+    fn test_player_movement_oldregion() {
+        todo!("Implement test");
+    }
+}
