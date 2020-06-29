@@ -2,7 +2,6 @@
 use amethyst::{
     core::{Named, SystemDesc},
     ecs::{prelude::*, world::Index, RunningTime},
-    shrev::EventChannel,
 };
 
 use ahash::AHashMap;

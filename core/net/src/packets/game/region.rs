@@ -160,7 +160,7 @@ fn to_offset(position: &Position) -> u8 {
     dx << 4 | dy & 0x7
 }
 
-#[derive(Debug)]
+#[derive(Debug, EventFromPacket)]
 pub struct GroupedRegionUpdate {
     pub region: Region,
     pub viewport_center: Position,
