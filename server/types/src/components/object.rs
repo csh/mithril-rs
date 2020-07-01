@@ -3,13 +3,14 @@ use specs::{Component, NullStorage, VecStorage};
 use mithril_core::net::packets::ObjectType;
 use mithril_core::pos::Direction;
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub enum WorldObjectData {
     Object {id: u16, object_type: ObjectType, orientation: Direction},
     TileItem(TileItemData)    
 }
 
+#[derive(Debug)]
 pub struct TileItemData {
     pub item: u16,
     amount: u16,

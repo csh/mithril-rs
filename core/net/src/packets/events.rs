@@ -4,12 +4,14 @@ use bytes::BytesMut;
 use std::fmt::Debug;
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum PacketEvent {
     Handshake(HandshakeEvent),
     Gameplay(GameplayEvent),
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum HandshakeEvent {
     HandshakeHello(HandshakeHello),
     HandshakeExchangeKey(HandshakeExchangeKey),
@@ -18,6 +20,7 @@ pub enum HandshakeEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum GameplayEvent {
     // region Gameplay - Serverbound
     KeepAlive(KeepAlive),

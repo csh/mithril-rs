@@ -464,6 +464,7 @@ impl SyncBlocks {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum PlayerUpdate {
     Remove(),
     Add(AddPlayer, SyncBlocks),
@@ -471,6 +472,7 @@ pub enum PlayerUpdate {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PlayerSynchronization {
     pub player_update: Option<PlayerUpdate>,
     pub other_players: Vec<PlayerUpdate>,

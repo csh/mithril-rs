@@ -17,14 +17,12 @@ pub enum ObjectType {
     FloorDecoration = 12,
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct RemoveObject {
     #[transform = "negate"]
     type_and_orientation: u8,
     position_offset: u8,
 }
-
-impl RegionUpdate for RemoveObject {}
 
 impl RemoveObject {
     pub fn new(
@@ -42,14 +40,12 @@ impl RemoveObject {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct RemoveTileItem {
     #[transform = "add"]
     position_offset: u8,
     id: u16,
 }
-
-impl RegionUpdate for RemoveTileItem {}
 
 impl RemoveTileItem {
     pub fn new(item: u16, position: &Position) -> Self {
@@ -60,7 +56,7 @@ impl RemoveTileItem {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct AddTileItem {
     #[endian = "little"]
     #[transform = "add"]
@@ -68,8 +64,6 @@ pub struct AddTileItem {
     amount: u16,
     position_offset: u8,
 }
-
-impl RegionUpdate for AddTileItem {}
 
 impl AddTileItem {
     pub fn new(item: u16, amount: u16, position: &Position) -> Self {
@@ -81,7 +75,7 @@ impl AddTileItem {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct SendObject {
     #[transform = "add"]
     position_offset: u8,
@@ -90,8 +84,6 @@ pub struct SendObject {
     #[transform = "subtract"]
     type_and_orientation: u8,
 }
-
-impl RegionUpdate for SendObject {}
 
 impl SendObject {
     pub fn new(
@@ -109,7 +101,7 @@ impl SendObject {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct AddGlobalTileItem {
     #[transform = "add"]
     id: u16,
@@ -119,8 +111,6 @@ pub struct AddGlobalTileItem {
     owner: u16,
     amount: u16,
 }
-
-impl RegionUpdate for AddGlobalTileItem {}
 
 impl AddGlobalTileItem {
     pub fn new(id: u16, position: &Position, owner: u16, amount: u16) -> Self {
@@ -133,15 +123,13 @@ impl AddGlobalTileItem {
     }
 }
 
-#[derive(Debug, Packet)]
+#[derive(Debug, Packet, PartialEq)]
 pub struct UpdateTileItem {
     position_offset: u8,
     id: u16,
     old_amount: u16,
     amount: u16,
 }
-
-impl RegionUpdate for UpdateTileItem {}
 
 impl UpdateTileItem {
     pub fn new(id: u16, position: &Position, old_amount: u16, amount: u16) -> Self {
@@ -160,24 +148,32 @@ fn to_offset(position: &Position) -> u8 {
     dx << 4 | dy & 0x7
 }
 
-#[derive(Debug, EventFromPacket)]
+#[derive(Debug, EventFromPacket, PartialEq)]
 pub struct GroupedRegionUpdate {
     pub region: Region,
     pub viewport_center: Position,
-    pub updates: Vec<Box<dyn RegionUpdate>>,
+    pub updates: Vec<RegionUpdate>,
 }
 
-impl GroupedRegionUpdate {
-    pub fn new(position: Position, region: Region, updates: Vec<Box<dyn RegionUpdate>>) -> Self {
+impl GroupedRegionUpdate { 
+    pub fn new(position: Position, region: Region) -> Self {
         GroupedRegionUpdate {
             region,
             viewport_center: position,
-            updates
+            updates: vec![],
         }
     }
-}
 
-pub trait RegionUpdate: Packet + std::fmt::Debug {}
+    pub fn add_all(mut self, updates: Vec<RegionUpdate>) -> Self {
+        self.updates.extend(updates);
+        self
+    }
+
+    pub fn add_update<T : Into<RegionUpdate>>(mut self, update: T) -> Self {
+        self.updates.push(update.into());
+        self    
+    }
+}
 
 impl Packet for GroupedRegionUpdate {
     fn try_write(&self, buffer: &mut BytesMut) -> anyhow::Result<()> {
@@ -200,6 +196,58 @@ impl Packet for GroupedRegionUpdate {
 
     fn get_type(&self) -> PacketType {
         PacketType::GroupedRegionUpdate
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RegionUpdate {
+    RemoveObject(RemoveObject),
+    RemoveTileItem(RemoveTileItem),
+    AddTileItem(AddTileItem),
+    SendObject(SendObject),
+    AddGlobalTileItem(AddGlobalTileItem),
+    UpdateTileItem(UpdateTileItem)
+}
+
+macro_rules! into_regionupdate {
+    ($update:ident) => {
+        impl From<$update> for RegionUpdate {
+            fn from(packet: $update) -> Self {
+                RegionUpdate::$update(packet)
+            }    
+        }
+    };
+}
+
+into_regionupdate!(RemoveObject);
+into_regionupdate!(RemoveTileItem);
+into_regionupdate!(AddTileItem);
+into_regionupdate!(SendObject);
+into_regionupdate!(AddGlobalTileItem);
+into_regionupdate!(UpdateTileItem);
+
+impl Packet for RegionUpdate {
+    fn try_write(&self, buffer: &mut BytesMut) -> anyhow::Result<()> {
+        match self {
+            Self::RemoveObject(packet) => packet.try_write(buffer),
+            Self::RemoveTileItem(packet) => packet.try_write(buffer),
+            Self::AddTileItem(packet) => packet.try_write(buffer),
+            Self::SendObject(packet) => packet.try_write(buffer),
+            Self::AddGlobalTileItem(packet) => packet.try_write(buffer),
+            Self::UpdateTileItem(packet) => packet.try_write(buffer),
+        }
+
+    }
+
+    fn get_type(&self) -> PacketType {
+        match self {
+            Self::RemoveObject(packet) => packet.get_type(),
+            Self::RemoveTileItem(packet) => packet.get_type(),
+            Self::AddTileItem(packet) => packet.get_type(),
+            Self::SendObject(packet) => packet.get_type(),
+            Self::AddGlobalTileItem(packet) => packet.get_type(),
+            Self::UpdateTileItem(packet) => packet.get_type(),
+        }
     }
 }
 
@@ -312,7 +360,7 @@ mod tests {
         GroupedRegionUpdate {
             region: (&Position::default()).into(),
             viewport_center: Position::default(),
-            updates: vec![Box::new(add_global), Box::new(remove_obj)],
+            updates: vec![add_global.into(), remove_obj.into()],
         }
         .try_write(&mut buf)
         .expect("Write failed?");

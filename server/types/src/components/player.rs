@@ -21,11 +21,11 @@ pub struct NewPlayer;
 #[storage(NullStorage)]
 pub struct Player;
 
-#[derive(Default, Component)]
+#[derive(Default, Component, Debug)]
 #[storage(VecStorage)]
 pub struct VisibleObjects(pub BitSet);
 
-#[derive(Component)]
+#[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub struct VisibleRegions(pub AHashSet<Region>);
 

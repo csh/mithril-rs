@@ -57,22 +57,21 @@ impl<'a> System<'a> for RegionUpdateSystem {
             &mut player.visible_objects,
         )
             .par_join()
-            .map(|(player, player_position, visible_regions, visible)| {
+            .map(|(player, player_position, visible_regions, visible_objects)| {
                 let viewport = Viewport::new(*player_position);
-
                 let deleted_static: AHashMap<_, _> = (
                     &entities,
                     &static_flag,
-                    &deleted,
+                    (&deleted).maybe(),
                     &position,
                     &object_data,
-                    (&visible.0).maybe(),
+                    (&visible_objects.0).maybe(),
                 )
                     .join()
                     .filter(|(_, _, _, pos, _, _)| viewport.contains(&pos))
-                    .map(|(entity, _, _, pos, data, known)| (entity, pos, data, known.is_some()))
+                    .map(|(entity, _, deleted, pos, data, known)| (entity, deleted.is_some(), pos, data, known.is_some()))
                     .fold(AHashMap::new(), |mut map, data| {
-                        let region: Region = data.1.into();
+                        let region: Region = data.2.into();
                         map.entry(region).or_insert_with(Vec::new).push(data);
                         map
                     });
@@ -83,7 +82,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
                     (&deleted).maybe(),
                     &position,
                     &object_data,
-                    (&visible.0).maybe(),
+                    (&visible_objects.0).maybe(),
                 )
                     .join()
                     .filter(|(_, _, _, pos, _, _)| viewport.contains(&pos))
@@ -96,11 +95,11 @@ impl<'a> System<'a> for RegionUpdateSystem {
                         map
                     });
 
-                let mut currently_visible: AHashSet<Region> = AHashSet::new();
-                currently_visible.extend(deleted_static.keys().clone());
-                currently_visible.extend(visible_dynamic.keys().clone());
+                let mut currently_visible_regions: AHashSet<Region> = AHashSet::new();
+                currently_visible_regions.extend(deleted_static.keys().clone());
+                currently_visible_regions.extend(visible_dynamic.keys().clone());
 
-                let updates: Vec<_> = currently_visible
+                let updates: Vec<_> = currently_visible_regions
                     .iter()
                     .map(|region| {
                         let clear_region = if !visible_regions.0.contains(&region) {
@@ -113,27 +112,26 @@ impl<'a> System<'a> for RegionUpdateSystem {
                             deleted_static.get(&region)
                         {
                             EitherIter::Left(
-                                deleted_static.iter().filter(|(_, _, _, known)| !known).map(
-                                    |(_entity, pos, data, _)| -> Box<dyn RegionUpdate> {
+                                deleted_static.iter().filter(|(_, deleted, _, _, known)| *deleted && *known).map(
+                                    |(_entity, _, pos, data, _)| -> RegionUpdate {
                                         match data {
                                             WorldObjectData::Object {
                                                 id: _,
                                                 object_type,
                                                 orientation,
-                                            } => Box::new(
-                                                RemoveObject::new(*object_type, *orientation, pos)
-                                                    .expect("Wrong orientation?"),
-                                            ),
+                                            } => RemoveObject::new(*object_type, *orientation, pos)
+                                                    .expect("Wrong orientation?")
+                                                    .into(),
                                             // This can't even be, but leaving it for completion
                                             WorldObjectData::TileItem(data) => {
-                                                Box::new(RemoveTileItem::new(data.item, pos))
+                                                RemoveTileItem::new(data.item, pos).into()
                                             }
                                         }
                                     },
                                 ),
                             )
                         } else {
-                            EitherIter::Right(std::iter::empty::<Box<dyn RegionUpdate>>())
+                            EitherIter::Right(std::iter::empty::<RegionUpdate>())
                         };
 
                         let dynamic_updates =
@@ -151,86 +149,105 @@ impl<'a> System<'a> for RegionUpdateSystem {
                                                 object_type,
                                                 orientation,
                                             } => {
-                                                let b: Box<dyn RegionUpdate> = if *deleted {
-                                                    Box::new(
-                                                        RemoveObject::new(
-                                                            *object_type,
-                                                            *orientation,
-                                                            pos,
-                                                        )
-                                                        .expect("Bad orientation"),
+                                                if *deleted {
+                                                    RemoveObject::new(
+                                                        *object_type,
+                                                        *orientation,
+                                                        pos,
                                                     )
+                                                    .expect("Bad orientation")
+                                                    .into()
                                                 } else {
-                                                    Box::new(
-                                                        SendObject::new(
-                                                            *id,
-                                                            *object_type,
-                                                            *orientation,
-                                                            pos,
-                                                        )
-                                                        .expect("Bad orientation"),
+                                                    SendObject::new(
+                                                        *id,
+                                                        *object_type,
+                                                        *orientation,
+                                                        pos,
                                                     )
-                                                };
-                                                b
+                                                    .expect("Bad orientation")
+                                                    .into()
+                                                }
                                             }
                                             WorldObjectData::TileItem(data) => {
                                                 if *deleted {
-                                                    Box::new(RemoveTileItem::new(data.item, pos))
-                                                } else {
-                                                    let b: Box<dyn RegionUpdate> =
-                                                        match data.get_old_amount() {
-                                                            Some(old_amount) => {
-                                                                Box::new(UpdateTileItem::new(
-                                                                    data.item,
-                                                                    pos,
-                                                                    data.get_amount(),
-                                                                    old_amount,
-                                                                ))
-                                                            }
-                                                            None => Box::new(AddTileItem::new(
+                                                    RemoveTileItem::new(data.item, pos).into()
+                                                } else { 
+                                                    match data.get_old_amount() {
+                                                        Some(old_amount) => {
+                                                            UpdateTileItem::new(
+                                                                data.item,
+                                                                pos,
+                                                                data.get_amount(),
+                                                                old_amount,
+                                                            ).into()
+                                                        },
+                                                        None => AddTileItem::new(
                                                                 data.item,
                                                                 data.get_amount(),
                                                                 pos,
-                                                            )),
-                                                        };
-                                                    b
+                                                            ).into()
+                                                    }
                                                 }
                                             }
                                         }),
                                 )
                             } else {
-                                EitherIter::Right(std::iter::empty::<Box<dyn RegionUpdate>>())
+                                EitherIter::Right(std::iter::empty::<RegionUpdate>())
                             };
+
+                        let updates: Vec<_> = static_updates.chain(dynamic_updates).collect();
+
+                        let grouped_update = if !updates.is_empty() {
+                            Some(GroupedRegionUpdate::new(
+                                *player_position,
+                                *region,
+                            ).add_all(updates))
+                        } else {
+                            None    
+                        };
 
                         (
                             clear_region,
-                            GroupedRegionUpdate::new(
-                                *player_position,
-                                *region,
-                                static_updates.chain(dynamic_updates).collect(),
-                            ),
+                            grouped_update,
                         )
                     })
                     .collect();
-                (player, currently_visible, updates)
+
+                let ds = deleted_static.values().flat_map(|val| val.iter())
+                            .filter(|(_, deleted, ..)| !deleted)
+                            .map(|(entity, ..)| entity.id());
+
+                let vd = visible_dynamic.values().flat_map(|val| val.iter())
+                            .filter(|(_, deleted, ..)| !deleted)
+                            .map(|(entity, ..)| entity.id());
+
+                let new_visible_objects = ds.chain(vd).fold(BitSet::new(), |mut bitset, id| {
+                    bitset.add(id);
+                    bitset    
+                });
+
+                (player, currently_visible_regions, new_visible_objects, updates)
             })
             .collect();
 
         let mut visible: AHashMap<_, _> = AHashMap::new();
-        for (player, currently_visible, updates) in player_with_updates {
+        for (player, visible_regions, visible_objects, updates) in player_with_updates {
             for (clear_region, grouped_updates) in updates {
                 if let Some(clear_region) = clear_region {
                     net.send(player, clear_region);
                 }
-                net.send(player, grouped_updates);
+                if let Some(grouped_updates) = grouped_updates {
+                    net.send(player, grouped_updates);
+                }
             }
-            visible.insert(player.id(), currently_visible);
+            visible.insert(player.id(), (visible_regions, visible_objects));
         }
 
-        (&entities, &mut player.visible_regions).join().for_each(
-            |(player, mut visible_regions)| {
-                if let Some(currently_visible) = visible.remove(&player.id()) {
-                    visible_regions.0 = currently_visible;
+        (&entities, &mut player.visible_regions, &mut player.visible_objects).join().for_each(
+            |(player, mut visible_regions, mut visible_objects)| {
+                if let Some((l_visible_regions, l_visible_objects)) = visible.remove(&player.id()) {
+                    visible_regions.0 = l_visible_regions;
+                    visible_objects.0 = l_visible_objects;
                 }
             },
         );
@@ -247,7 +264,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
 
 impl RegionUpdateSystem {
     fn has_updates(known: bool, deleted: bool, data: &WorldObjectData) -> bool {
-        if known != deleted {
+        if known == deleted {
             true
         } else {
             match data {
@@ -290,7 +307,9 @@ mod tests {
     use amethyst_test::prelude::*;
     use amethyst::{GameData, StateEvent, StateEventReader};
     use mithril_core::{
-        net::packets::ObjectType,
+        net::packets::{
+            ObjectType, PacketEvent, GameplayEvent
+        },
         pos::*
     };
     use mithril_server_types::components::TileItemData;
@@ -298,11 +317,14 @@ mod tests {
     use super::*;
     
     fn bootstrap() -> AmethystApplication<GameData<'static, 'static>, StateEvent, StateEventReader> {
+        let mut logger = amethyst::LoggerConfig::default();
+        logger.level_filter = log::LevelFilter::Debug;
+        amethyst::start_logger(logger);
         AmethystApplication::blank()
             .with_setup(|world| {
                 world.insert(MithrilTransportResource::default()); 
             })
-            .with_system_desc_single(RegionUpdateSystemDesc, "region_update", &[])
+            .with_system_desc(RegionUpdateSystemDesc, "region_update", &[])
             .with_effect(|world| { 
                 let static_object = world.create_entity()
                     .with(Position::default() + (1, 1))
@@ -321,18 +343,20 @@ mod tests {
                     .build();
 
                 let mut bitset = BitSet::new();
+                // known static objects are deleted
                 bitset.add(static_object.id());
                 bitset.add(dynamic_object.id());
                 bitset.add(tile_item.id());
 
                 let mut visible_regions = AHashSet::new();
                 visible_regions.insert((&Position::default()).into());
+                visible_regions.insert((&(Position::default() + (3,3))).into());
 
                 world.create_entity()
                     .with(Position::default())
                     .with(VisibleRegions(visible_regions))
                     .with(VisibleObjects(bitset))
-                    .build();
+                    .build(); 
             })
             
     }
@@ -347,6 +371,7 @@ mod tests {
                 let visible_regions: &VisibleRegions = component.get(player).unwrap();
                 let mut should_be_regions = AHashSet::new();
                 should_be_regions.insert((&Position::default()).into());
+                should_be_regions.insert((&(Position::default() + (3, 3))).into());
 
                 assert!(net.queued_packets().is_empty(), "There should be no packets");
                 assert_eq!(visible_regions.0, should_be_regions);
@@ -357,45 +382,434 @@ mod tests {
     #[test]
     fn test_static_object_delete() {
         bootstrap()
+            .with_effect(|world| {
+                let static_object = (&world.entities(), &world.read_storage::<StaticObject>())
+                    .join()
+                    .map(|(entity, _)| entity)
+                    .nth(0).unwrap();
+                world.write_component::<Deleted>().insert(static_object, Deleted).expect("Failed to add deleted flag"); 
+            })
             .with_assertion(|world| {
+                // Never delete static objects
+                let static_object_not_deleted = (&world.entities(), &world.read_storage::<StaticObject>())
+                    .join()
+                    .nth(0)
+                    .is_some();
+                assert!(static_object_not_deleted);
+                
                 let net = world.read_resource::<MithrilTransportResource>();
-                todo!("Implement assertions");
+                let static_object_pos = Position::default() + (1, 1);
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (&static_object_pos).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            RemoveObject::new(ObjectType::Interactable, Direction::North, &static_object_pos).expect("Invalid direction").into()
+                        ],
+                    });
+                } 
+            })
+            .run().expect("Running system failed");
+    }
+
+    #[test]
+    fn test_dynamic_object_delete() {
+        bootstrap()
+            .with_effect(|world| {
+                let dynamic_object = (&world.entities(), 
+                    !&world.read_storage::<StaticObject>(),
+                    &world.read_storage::<WorldObjectData>()
+                )
+                    .join()
+                    .filter(|(_, _, data)| {
+                        if let WorldObjectData::Object {..} = data {
+                            true    
+                        } else {
+                            false    
+                        }
+                    })
+                    .map(|(entity, _, _)| entity)
+                    .nth(0).unwrap();
+                world.write_component::<Deleted>().insert(dynamic_object, Deleted).expect("Failed to add deleted flag"); 
+            })
+            .with_assertion(|world| {
+                // Never delete static objects
+                world.maintain();
+                let dynamic_object_deleted = (&world.entities(),
+                    !&world.read_storage::<StaticObject>(),
+                    &world.read_storage::<WorldObjectData>()
+                )
+                    .join()
+                    .filter(|(_, _, data)| {
+                        if let WorldObjectData::Object {..} = data {
+                            true    
+                        } else {
+                            false
+                        }
+                    })
+                    .nth(0)
+                    .is_none();
+                assert!(dynamic_object_deleted);
+                
+                let net = world.read_resource::<MithrilTransportResource>();
+                let dynamic_object_pos = Position::default() + (2, 2);
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (&dynamic_object_pos).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            RemoveObject::new(ObjectType::Interactable, Direction::North, &dynamic_object_pos).expect("Invalid direction").into()
+                        ],
+                    });
+                } 
+            })
+            .run().expect("Running system failed");
+    }
+
+    #[test]
+    fn test_tile_item_remove() {
+        bootstrap()
+            .with_effect(|world| {
+                let dynamic_object = (&world.entities(), 
+                    !&world.read_storage::<StaticObject>(),
+                    &world.read_storage::<WorldObjectData>()
+                )
+                    .join()
+                    .filter(|(_, _, data)| {
+                        if let WorldObjectData::TileItem(_)= data {
+                            true    
+                        } else {
+                            false    
+                        }
+                    })
+                    .map(|(entity, _, _)| entity)
+                    .nth(0).unwrap();
+                world.write_component::<Deleted>().insert(dynamic_object, Deleted).expect("Failed to add deleted flag"); 
+            })
+            .with_assertion(|world| {
+                // Never delete static objects
+                world.maintain();
+                let dynamic_object_deleted = (&world.entities(),
+                    !&world.read_storage::<StaticObject>(),
+                    &world.read_storage::<WorldObjectData>()
+                )
+                    .join()
+                    .filter(|(_, _, data)| {
+                        if let WorldObjectData::TileItem(_) = data {
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .nth(0)
+                    .is_none();
+                assert!(dynamic_object_deleted);
+                
+                let net = world.read_resource::<MithrilTransportResource>();
+                let tile_item_pos = Position::default() + (3, 3);
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (&tile_item_pos).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            RemoveTileItem::new(20, &tile_item_pos).into()
+                        ],
+                    });
+                } 
             })
             .run().expect("Running system failed");
     }
 
     #[test]
     fn test_dynamic_object_add() {
-        todo!("Implement test");
-    }
+        bootstrap()
+            .with_effect(|world| {
+                world.create_entity()
+                    .with(Position::default() + (4,4))
+                    .with(WorldObjectData::Object {id: 1, object_type: ObjectType::DiagonalWall, orientation: Direction::West})
+                    .build();
+            })
+            .with_assertion(|world| {
+                // Never delete static objects
+                world.maintain();
+                let entities = world.entities();
+                let position_component = world.read_storage::<Position>();
+                let data_component = world.read_storage::<WorldObjectData>();
+                let (new_object_id, position, object_type, orientation) = (
+                    &entities,
+                    &position_component,
+                    &data_component
+                )
+                    .join()
+                    .filter_map(|(entity, position, data)| {
+                        if let WorldObjectData::Object {id: 1, object_type, orientation} = data {
+                            Some((entity.id(), position, object_type, orientation))
+                        } else {
+                            None
+                        }
+                    })
+                    .nth(0).unwrap();
+                let visible_objects_component = world.read_storage::<VisibleObjects>();
+                let visible_objects = (&world.entities(),
+                    &visible_objects_component,
+                )
+                    .join()
+                    .map(|(_, vis)| vis)
+                    .nth(0)
+                    .unwrap();
+                assert!(visible_objects.0.contains(new_object_id));
+                
+                let net = world.read_resource::<MithrilTransportResource>();
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (position).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            SendObject::new(1, *object_type, *orientation, &position)
+                                .expect("Invalid orientation")
+                                .into()
+                        ],
+                    });
+                } 
+            })
+            .run().expect("Running system failed");
 
-    #[test]
-    fn test_dynamic_object_delete() {
-        todo!("Implement test");
     }
 
     #[test]
     fn test_tile_item_add() {
-        todo!("Implement test");
+        bootstrap()
+            .with_effect(|world| {
+                world.create_entity()
+                    .with(Position::default() + (4,4))
+                    .with(WorldObjectData::TileItem(TileItemData::new(21, 5)))
+                    .build();
+            })
+            .with_assertion(|world| {
+                // Never delete static objects
+                world.maintain();
+                let entities = world.entities();
+                let position_component = world.read_storage::<Position>();
+                let data_component = world.read_storage::<WorldObjectData>();
+                let (new_object_id, position, item_data) = (
+                    &entities,
+                    &position_component,
+                    &data_component
+                )
+                    .join()
+                    .filter_map(|(entity, position, data)| {
+                        if let WorldObjectData::TileItem(tile_item_data) = data {
+                            if tile_item_data.item == 21 {
+                                Some((entity.id(), position, tile_item_data))
+                            } else {
+                                None    
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .nth(0).unwrap();
+                let visible_objects_component = world.read_storage::<VisibleObjects>();
+                let visible_objects = (&world.entities(),
+                    &visible_objects_component,
+                )
+                    .join()
+                    .map(|(_, vis)| vis)
+                    .nth(0)
+                    .unwrap();
+                assert!(visible_objects.0.contains(new_object_id));
+                
+                let net = world.read_resource::<MithrilTransportResource>();
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (position).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            AddTileItem::new(item_data.item, item_data.get_amount(), position).into()
+                        ],
+                    });
+                } 
+            })
+            .run().expect("Running system failed");
     }
 
     #[test]
     fn test_tile_item_update() {
-        todo!("Implement test");
+        bootstrap()
+            .with_effect(|world| {
+                let mut item_data = TileItemData::new(21, 5);
+                // Make it 3
+                item_data.take(2);
+                // create the entity
+                let item = world.create_entity()
+                    .with(Position::default() + (4,4))
+                    .with(WorldObjectData::TileItem(item_data))
+                    .build();
+                // In normal cases, we know the entity
+                let entities = world.entities();
+                let mut visible_objects_component = world.write_storage::<VisibleObjects>();
+                let visible_objects = visible_objects_component.get_mut(entities.entity(3)).unwrap();
+                visible_objects.0.add(item.id());
+            })
+            .with_assertion(|world| {
+                // Never delete static objects
+                world.maintain();
+                let entities = world.entities();
+                let position_component = world.read_storage::<Position>();
+                let data_component = world.read_storage::<WorldObjectData>();
+                let (new_object_id, position, item_data) = (
+                    &entities,
+                    &position_component,
+                    &data_component
+                )
+                    .join()
+                    .filter_map(|(entity, position, data)| {
+                        if let WorldObjectData::TileItem(tile_item_data) = data {
+                            if tile_item_data.item == 21 {
+                                Some((entity.id(), position, tile_item_data))
+                            } else {
+                                None    
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .nth(0).unwrap();
+                let visible_objects_component = world.read_storage::<VisibleObjects>();
+                let visible_objects = (&world.entities(),
+                    &visible_objects_component,
+                )
+                    .join()
+                    .map(|(_, vis)| vis)
+                    .nth(0)
+                    .unwrap();
+                assert!(visible_objects.0.contains(new_object_id));
+                
+                let net = world.read_resource::<MithrilTransportResource>();
+                assert_eq!(net.queued_packets().len(), 1);
+                let (entity, packet_event) = net.queued_packets().front().unwrap(); 
+                assert_eq!(entity.id(), 3); // Is our player
+                assert!(packet_event.is_gameplay()); // Gameplay packet
+                if let PacketEvent::Gameplay(GameplayEvent::GroupedRegionUpdate(packet)) = packet_event {
+                    assert_eq!(packet, &GroupedRegionUpdate {
+                        region: (position).into(),
+                        viewport_center: Position::default(),
+                        updates: vec![
+                            UpdateTileItem::new(item_data.item, position, item_data.get_amount(), item_data.get_old_amount().unwrap()).into()
+                        ],
+                    });
+                } 
+            })
+            .run().expect("Running system failed");
     }
 
-    #[test]
-    fn test_tile_item_remove() {
-        todo!("Implement test");
+    macro_rules! assert_packet {
+        ($left:expr, $ident:ident::$right:expr) => {
+            if let GameplayeEvent::$ident(packet) = $left{
+                assert_eq!(packet, $ident::$right);
+            } else {
+                assert!($left.is_game)    
+            }
+        }; 
     }
 
     #[test]
     fn test_player_movement_newregion() {
+         bootstrap()
+            .with_effect(|world| {
+                world.create_entity()
+                    .with(Position::default())
+                    .with(VisibleRegions(AHashSet::new()))
+                    .with(VisibleObjects(BitSet::new()))
+                    .build();    
+            })
+            .with_assertion(|world| {
+                let net = world.read_resource::<MithrilTransportResource>();
+                let player = world.entities().entity(3);
+                let other = world.entities().entity(4);
+                let regions_component = world.read_component::<VisibleRegions>();
+                let visible_regions = regions_component.get(player).unwrap();
+                let objects_component = world.read_component::<VisibleObjects>();
+                // This should be the same as our new player
+                let visible_objects = objects_component.get(player).unwrap();
+                let mut should_be_regions = AHashSet::new();
+                should_be_regions.insert((&Position::default()).into());
+                should_be_regions.insert((&(Position::default() + (3, 3))).into());
+ 
+                assert_eq!(net.queued_packets().len(), 5, "There should be 5 packets");                 
+                let packets_by_player: AHashMap<_, _> = net.queued_packets().iter()
+                    .filter_map(|event| {
+                        if let PacketEvent::Gameplay(packet_event) = &event.1 {
+                            Some((event.0.id(), packet_event))
+                        } else {
+                            None    
+                        }
+                    })
+                    .fold(AHashMap::new(), |mut map, (id, packet_event)| {
+                        map.entry(id).or_insert_with(Vec::new).push(packet_event);
+                        map
+                    });
+
+                // Existing player
+                assert_eq!(visible_regions.0, should_be_regions);
+                assert!(packets_by_player.get(&player.id()).is_none());
+
+                // New player
+                let packets = packets_by_player.get(&other.id()).unwrap();
+                assert_eq!(packets.len(), 5);
+                
+                assert_eq!(regions_component.get(other).unwrap().0, visible_regions.0);
+                assert_eq!(objects_component.get(other).unwrap().0, visible_objects.0);
+
+                
+            })
+            .run().expect("Running system failed"); 
         todo!("Implement test");
     }
 
     #[test]
     fn test_player_movement_oldregion() {
-        todo!("Implement test");
+        bootstrap()
+            .with_effect(|world| {
+                let mut position_component = world.write_component::<Position>();
+                let player = world.entities().entity(3);
+                let current = *position_component.get(player).unwrap();
+                position_component.insert(player, current + (105, 105))
+                    .expect("Failed to update position");
+            })
+            .with_assertion(|world| {
+                let net = world.read_resource::<MithrilTransportResource>();
+                let player = world.entities().entity(3);
+                let component = world.read_component::<VisibleRegions>();
+                let visible_regions = component.get(player).unwrap();
+                let component = world.read_component::<VisibleObjects>();
+                let visible_objects = component.get(player).unwrap();
+                let should_be_regions = AHashSet::new();
+                let should_be_objects = BitSet::new();
+                assert!(net.queued_packets().is_empty(), "There should be no packets");
+                assert_eq!(visible_regions.0, should_be_regions);
+                assert_eq!(visible_objects.0, should_be_objects);
+            })
+            .run().expect("Running system failed"); 
     }
 }
