@@ -7,6 +7,7 @@ edition = "2018"
 [features]
 default = ["jaggrab"]
 jaggrab = ["thiserror", "nom"]
+test-equality = []
 
 [dependencies]
 mithril-codegen = { path = "../../codegen" }

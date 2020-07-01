@@ -148,7 +148,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                         skill_level: 420,
                         colours: vec![0, 0, 0, 0, 0],
                     };
-                    blocks.add_block(Box::new(block));
+                    blocks.add_block(block.into());
                     (
                         remote_player.0.id(),
                         PlayerUpdate::Add(

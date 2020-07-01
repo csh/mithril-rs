@@ -723,16 +723,6 @@ mod tests {
             .run().expect("Running system failed");
     }
 
-    macro_rules! assert_packet {
-        ($left:expr, $ident:ident::$right:expr) => {
-            if let GameplayeEvent::$ident(packet) = $left{
-                assert_eq!(packet, $ident::$right);
-            } else {
-                assert!($left.is_game)    
-            }
-        }; 
-    }
-
     #[test]
     fn test_player_movement_newregion() {
          bootstrap()
@@ -753,10 +743,12 @@ mod tests {
                 // This should be the same as our new player
                 let visible_objects = objects_component.get(player).unwrap();
                 let mut should_be_regions = AHashSet::new();
-                should_be_regions.insert((&Position::default()).into());
-                should_be_regions.insert((&(Position::default() + (3, 3))).into());
+                let region_a = (&Position::default()).into();
+                let region_b = (&(Position::default() + (3, 3))).into();
+                should_be_regions.insert(region_a);
+                should_be_regions.insert(region_b);
  
-                assert_eq!(net.queued_packets().len(), 5, "There should be 5 packets");                 
+                assert_eq!(net.queued_packets().len(), 4, "There should be 4 packets");                 
                 let packets_by_player: AHashMap<_, _> = net.queued_packets().iter()
                     .filter_map(|event| {
                         if let PacketEvent::Gameplay(packet_event) = &event.1 {
@@ -776,15 +768,42 @@ mod tests {
 
                 // New player
                 let packets = packets_by_player.get(&other.id()).unwrap();
-                assert_eq!(packets.len(), 5);
-                
+                assert_eq!(packets.len(), 4);
+                #[cfg(feature = "test-equality")]
+                {
+                    let expected_packets: Vec<GameplayEvent> = vec![
+                        ClearRegion::new(Position::default(), region_a).into(),
+                        GroupedRegionUpdate::new(Position::default(), region_a)
+                            .add_update(
+                                SendObject::new(0, ObjectType::Interactable, Direction::North, &(Position::default() + (2,2)))
+                                    .expect("Invalid direction"))
+                            .into(),
+                        ClearRegion::new(Position::default(), region_b).into(),
+                        GroupedRegionUpdate::new(Position::default(), region_b)
+                            .add_update(
+                                AddTileItem::new(20, 1, &(Position::default() + (3, 3)))
+                            ).into()
+                    ];
+
+                    let mut ep: Vec<&GameplayEvent> = expected_packets.iter().collect();
+                    let first = packets == &ep;
+                    dbg!(&packets);
+                    dbg!(&ep);
+                    let (c_a, u_a, c_b, u_b) = (ep[0], ep[1], ep[2], ep[3]);
+                    ep[0] = c_b;
+                    ep[1] = u_b;
+                    ep[2] = c_a;
+                    ep[3] = u_a;
+                    dbg!(&ep);
+                    let second = packets == &ep;
+                    assert!(first || second, "Packet ordering is wrong");
+                }
                 assert_eq!(regions_component.get(other).unwrap().0, visible_regions.0);
                 assert_eq!(objects_component.get(other).unwrap().0, visible_objects.0);
 
                 
             })
             .run().expect("Running system failed"); 
-        todo!("Implement test");
     }
 
     #[test]

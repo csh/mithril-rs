@@ -127,7 +127,7 @@ impl<'a> System<'a> for SendInitialPackets {
                 };
 
                 let mut blocks = SyncBlocks::default();
-                blocks.add_block(Box::new(appearance));
+                blocks.add_block(appearance.into());
 
                 transport.send(
                     player,

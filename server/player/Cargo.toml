@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 profiler = ["thread_profiler"]
+test-equality = ["mithril-core/test-equality"]
 
 [dependencies]
 mithril-server-types = { path = "../types" }
