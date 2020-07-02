@@ -6,15 +6,19 @@ use mithril_core::pos::Direction;
 #[derive(Component, Debug)]
 #[storage(VecStorage)]
 pub enum WorldObjectData {
-    Object {id: u16, object_type: ObjectType, orientation: Direction},
-    TileItem(TileItemData)    
+    Object {
+        id: u16,
+        object_type: ObjectType,
+        orientation: Direction,
+    },
+    TileItem(TileItemData),
 }
 
 #[derive(Debug)]
 pub struct TileItemData {
     pub item: u16,
     amount: u16,
-    old_amount: Option<u16>    
+    old_amount: Option<u16>,
 }
 
 impl TileItemData {
@@ -22,7 +26,7 @@ impl TileItemData {
         TileItemData {
             item,
             amount,
-            old_amount: None,    
+            old_amount: None,
         }
     }
 

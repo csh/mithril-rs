@@ -315,10 +315,10 @@ impl<'a> System<'a> for EntityPathfindingSystem {
                             lazy.insert(entity, PreviousPosition(next_step, Some(*current)));
                         }
                     } else if let Some(previous) = previous {
-                            previous.0 = *current;
-                            previous.1 = None;
+                        previous.0 = *current;
+                        previous.1 = None;
                     } else {
-                            lazy.insert(entity, PreviousPosition(*current, None));
+                        lazy.insert(entity, PreviousPosition(*current, None));
                     }
 
                     *current = run_step.unwrap_or(next_step);

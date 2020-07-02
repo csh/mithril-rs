@@ -29,8 +29,8 @@ impl Direction {
 
 #[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
 pub struct Region {
-   pub x: i16,
-   pub y: i16, 
+    pub x: i16,
+    pub y: i16,
 }
 
 impl From<&Position> for Region {
@@ -39,7 +39,7 @@ impl From<&Position> for Region {
             x: pos.get_x() / 8,
             y: pos.get_y() / 8,
         }
-    } 
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

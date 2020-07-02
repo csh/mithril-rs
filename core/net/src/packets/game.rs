@@ -883,11 +883,8 @@ impl ClearRegion {
         let local_x = ((region.x - (player.get_x() / 8 - 6)) * 8) as u8;
         let local_y = ((region.y - (player.get_y() / 8 - 6)) * 8) as u8;
 
-        ClearRegion {
-            local_x,
-            local_y
-        }
-    }   
+        ClearRegion { local_x, local_y }
+    }
 }
 
 #[derive(Debug, EventFromPacket)]
