@@ -115,57 +115,39 @@ impl Appearance {
         item_or_zero!(&equipment.cape, buf);
         item_or_zero!(&equipment.amulet, buf);
         item_or_zero!(&equipment.weapon, buf);
-
+        // body / clothing
         buf.put_u16(if let Some(item) = &equipment.chest {
             (0x200 + item.id) as u16
         } else {
             (0x100 + style[2]) as u16
         });
-
         item_or_zero!(&equipment.shield, buf); 
-
-        /*if let Some(_item) = &equipment.chest {
-            // && item.is_full_body() {
-            buf.put_u8(0);
-        } else*/ {
-            buf.put_u16(0x100 + style[3]);
-        }
-
+        buf.put_u16(0x100 + style[3]);
+        // legs
         buf.put_u16(if let Some(item) = &equipment.legs {
             (0x200 + item.id) as u16
         } else {
             (0x100 + style[5]) as u16
         });
-
-        /*if let Some(_item) = &equipment.hat {
-            // && (item.is_full_hat() || item.is_full_mask()) {
-            buf.put_u8(0);
-        } else */ {
-            buf.put_u16(0x100 + style[0]);
-        }
-
+        buf.put_u16(0x100 + style[0]);
+        // hands
         buf.put_u16(if let Some(item) = &equipment.hands {
             (0x200 + item.id) as u16
         } else {
             (0x100 + style[4]) as u16
         });
-
+        // feet
         buf.put_u16(if let Some(item) = &equipment.feet {
             (0x200 + item.id) as u16
         } else {
             (0x100 + style[6]) as u16
         });
-
+        // Mustache / beard
         if gender != 0 {
             buf.put_u8(0);
         } else {
             buf.put_u16(0x100 + style[1]); 
-        } /*if let Some(_item) = &equipment.hat {
-            // && item.is_full_mask(){
-            buf.put_u8(0);
-        } else {
-            buf.put_u16(0x100 + style[1]);
-        }*/
+        }
     }
 }
 
