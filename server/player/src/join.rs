@@ -110,7 +110,7 @@ impl<'a> System<'a> for SendInitialPackets {
                 );
 
                 let mut equipment = Equipment::default();
-                equipment.hat = Some(Item { id: 1042 });
+                equipment.hat = Some(Item { id: 1040 });
                 equipment.chest = Some(Item { id: 1121 });
                 equipment.legs = Some(Item { id: 1071 });
 
