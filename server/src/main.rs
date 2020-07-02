@@ -1,10 +1,10 @@
 use std::net::TcpListener;
 use std::time::Duration;
 
+use amethyst::core::frame_limiter::FrameRateLimitStrategy;
 use amethyst::{
     network::simulation::tcp::TcpNetworkBundle, prelude::*, utils::application_dir, Result,
 };
-use amethyst::core::frame_limiter::FrameRateLimitStrategy;
 
 use mithril::{
     core::fs::CacheFileSystem,
