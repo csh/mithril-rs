@@ -10,8 +10,8 @@ pub fn serve_jaggrab<A: ToSocketAddrs>(
     thread_pool: Arc<ThreadPool>,
     cache: CacheFileSystem,
 ) -> io::Result<()> {
-    let mut bind_addrs = bind_addr.to_socket_addrs()?;
-    while let Some(bind_addr) = bind_addrs.next() {
+    let bind_addrs = bind_addr.to_socket_addrs()?;
+    for bind_addr in bind_addrs {
         log::debug!("Binding JAGGRAB listener to {}", bind_addr);
         bind_listener(bind_addr, Arc::clone(&thread_pool), &cache)?;
     }
