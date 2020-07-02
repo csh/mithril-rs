@@ -13,7 +13,7 @@ pub struct Animation {
     delay: u8,
 }
 
-impl Animation { 
+impl Animation {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le(self.id);
         buf.put_u8t(self.delay, Transform::Negate);
@@ -58,7 +58,7 @@ pub struct Appearance {
     pub colours: Vec<u8>, // Enums are cool I tell you!
 }
 
-impl Appearance { 
+impl Appearance {
     fn write(&self, buf: &mut BytesMut) {
         // I'm cheating the system here, I'll fake buffers
         let mut buf2 = BytesMut::new(); // buf2 = new buffer in your case
@@ -192,7 +192,7 @@ pub struct ForceChat {
     message: String,
 }
 
-impl ForceChat { 
+impl ForceChat {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_rs_string(self.message.clone());
     }
@@ -206,7 +206,7 @@ pub struct ForceMovement {
     direction: u8,
 }
 
-impl ForceMovement { 
+impl ForceMovement {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8t(self.initial_pos.0, Transform::Subtract);
         buf.put_u8t(self.initial_pos.1, Transform::Subtract);
@@ -225,7 +225,7 @@ pub struct Graphic {
     delay: u16,
 }
 
-impl Graphic { 
+impl Graphic {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le(self.id);
         buf.put_u32((self.height as u32) << 16 | self.delay as u32);
@@ -240,7 +240,7 @@ pub struct HitUpdate {
     max_health: u8,
 }
 
-impl HitUpdate { 
+impl HitUpdate {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8(self.damage);
         buf.put_u8t(self.damage_type, Transform::Add);
@@ -268,7 +268,7 @@ pub struct SecondaryHitUpdate {
     max_health: u8,
 }
 
-impl SecondaryHitUpdate { 
+impl SecondaryHitUpdate {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8(self.damage);
         buf.put_u8t(self.damage_type, Transform::Subtract);
@@ -282,7 +282,7 @@ pub struct TurnToPosition {
     position: (u16, u16),
 }
 
-impl TurnToPosition { 
+impl TurnToPosition {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16t_le(self.position.0 * 2 + 1, Transform::Add);
         buf.put_u16_le(self.position.1 * 2 + 1);
@@ -303,9 +303,7 @@ pub enum SyncBlock {
     SecondaryHitUpdate(SecondaryHitUpdate),
 }
 
-impl SyncBlock {
-        
-}
+impl SyncBlock {}
 
 #[derive(Debug, PartialEq)]
 pub enum EntityMovement {
@@ -370,7 +368,7 @@ impl SyncBlock {
             Self::TurnToPosition(packet) => packet.write(buffer),
             Self::HitUpdate(packet) => packet.write(buffer),
             Self::SecondaryHitUpdate(packet) => packet.write(buffer),
-        }    
+        }
     }
 }
 
@@ -380,8 +378,8 @@ macro_rules! into_syncblock {
             fn from(packet: $type) -> Self {
                 Self::$type(packet)
             }
-        }    
-    }    
+        }
+    };
 }
 
 into_syncblock!(ForceMovement);
@@ -409,10 +407,7 @@ impl SyncBlocks {
     }
 
     fn write(&self, buf: &mut BytesMut) {
-        let mask: u16 = self
-            .blocks
-            .keys()
-            .fold(0, |acc, val| acc | val);
+        let mask: u16 = self.blocks.keys().fold(0, |acc, val| acc | val);
         if mask >= 0x100 {
             let mask = mask | 0x40;
             buf.put_u16_le(mask);
@@ -420,7 +415,8 @@ impl SyncBlocks {
             buf.put_u8(mask as u8);
         }
 
-        BLOCKS.iter()
+        BLOCKS
+            .iter()
             .filter_map(|id| self.blocks.get(id))
             .for_each(|block| block.write(buf));
     }

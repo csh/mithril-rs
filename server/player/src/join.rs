@@ -99,7 +99,7 @@ impl<'a> System<'a> for SendInitialPackets {
 
                 transport.send(
                     player,
-                    ClearRegion::new(Position::default(), (&Position::default()).into()) 
+                    ClearRegion::new(Position::default(), (&Position::default()).into()),
                 );
 
                 transport.send(

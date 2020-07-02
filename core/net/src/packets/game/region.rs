@@ -155,7 +155,7 @@ pub struct GroupedRegionUpdate {
     pub updates: Vec<RegionUpdate>,
 }
 
-impl GroupedRegionUpdate { 
+impl GroupedRegionUpdate {
     pub fn new(position: Position, region: Region) -> Self {
         GroupedRegionUpdate {
             region,
@@ -169,9 +169,9 @@ impl GroupedRegionUpdate {
         self
     }
 
-    pub fn add_update<T : Into<RegionUpdate>>(mut self, update: T) -> Self {
+    pub fn add_update<T: Into<RegionUpdate>>(mut self, update: T) -> Self {
         self.updates.push(update.into());
-        self    
+        self
     }
 }
 
@@ -206,7 +206,7 @@ pub enum RegionUpdate {
     AddTileItem(AddTileItem),
     SendObject(SendObject),
     AddGlobalTileItem(AddGlobalTileItem),
-    UpdateTileItem(UpdateTileItem)
+    UpdateTileItem(UpdateTileItem),
 }
 
 macro_rules! into_regionupdate {
@@ -214,7 +214,7 @@ macro_rules! into_regionupdate {
         impl From<$update> for RegionUpdate {
             fn from(packet: $update) -> Self {
                 RegionUpdate::$update(packet)
-            }    
+            }
         }
     };
 }
@@ -236,7 +236,6 @@ impl Packet for RegionUpdate {
             Self::AddGlobalTileItem(packet) => packet.try_write(buffer),
             Self::UpdateTileItem(packet) => packet.try_write(buffer),
         }
-
     }
 
     fn get_type(&self) -> PacketType {
