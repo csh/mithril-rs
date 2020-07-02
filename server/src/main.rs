@@ -101,6 +101,8 @@ impl SimpleState for LoadingState {
             }
         };
 
+        data.world.register::<WorldObjectData>();
+
         for idx in map_indices.values() {
             let object_defs = match defs::MapObject::load(&cache, idx) {
                 Ok(defs) => defs,
@@ -131,6 +133,14 @@ impl SimpleState for LoadingState {
                     })
                     .build();
             }
+        }
+
+        match defs::ObjectDefinition::load(&cache) {
+            Ok(defs) => data.world.insert(defs),
+            Err(cause) => {
+                log::error!("Failed to load object definitions; {}", cause);
+                return;    
+            }    
         }
 
         data.world.insert(cache);

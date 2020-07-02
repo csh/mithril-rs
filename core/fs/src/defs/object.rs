@@ -53,7 +53,7 @@ impl Default for ObjectDefinition {
 }
 
 impl ObjectDefinition {
-    pub fn load(cache: &mut CacheFileSystem) -> crate::Result<Vec<Self>> {
+    pub fn load(cache: &CacheFileSystem) -> crate::Result<Vec<Self>> {
         let archive = cache.get_archive(0, 2)?;
         let mut index = archive
             .get_entry("loc.idx")

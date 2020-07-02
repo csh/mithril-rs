@@ -4,9 +4,12 @@ use amethyst::{
     Result,
 };
 
+use mithril_server_net::PacketEventChannel;
+
 mod join;
 mod movement;
 mod objects;
+mod interact;
 
 pub struct PlayerEntityBundle;
 
@@ -31,9 +34,17 @@ impl<'a, 'b> SystemBundle<'a, 'b> for PlayerEntityBundle {
         );
 
         dispatcher.add(
+            interact::InteractSystem {
+                reader: world.fetch_mut::<PacketEventChannel>().register_reader(),    
+            },
+            "interact",
+            &["entity_pathfinding"],
+        );
+
+        dispatcher.add(
             objects::RegionUpdateSystemDesc::default().build(world),
             "object_sync",
-            &["entity_pathfinding"],
+            &["entity_pathfinding", "interact"],
         );
 
         Ok(())

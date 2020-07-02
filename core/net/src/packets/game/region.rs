@@ -7,14 +7,15 @@ use mithril_pos::{Direction, Position, Region};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ObjectType {
-    LengthwiseWall = 0,
-    TriangularCorner = 1,
-    WallCorner = 2,
-    RectangularCorner = 3,
-    DiagonalWall = 9,
-    Interactable = 10,
-    DiagonalInteractable = 11,
-    FloorDecoration = 12,
+    LengthwiseWall,
+    TriangularCorner,
+    WallCorner,
+    RectangularCorner,
+    DiagonalWall,
+    Interactable,
+    DiagonalInteractable,
+    FloorDecoration,
+    Unknown(u8)
 }
 
 impl From<u8> for ObjectType {
@@ -27,8 +28,24 @@ impl From<u8> for ObjectType {
             9 => ObjectType::DiagonalWall,
             10 => ObjectType::Interactable,
             11 => ObjectType::DiagonalInteractable,
-            12 => ObjectType::FloorDecoration,
-            _ => unreachable!()
+            22 => ObjectType::FloorDecoration,
+            x => ObjectType::Unknown(x)
+        }    
+    }
+}
+
+impl From<ObjectType> for u8{
+    fn from(value: ObjectType) -> u8 {
+        match value {
+            ObjectType::LengthwiseWall => 0,
+            ObjectType::TriangularCorner => 1,
+            ObjectType::WallCorner => 2,
+            ObjectType::RectangularCorner => 3,
+            ObjectType::DiagonalWall => 9,
+            ObjectType::Interactable => 10,
+            ObjectType::DiagonalInteractable => 11,
+            ObjectType::FloorDecoration => 22,
+            ObjectType::Unknown(x) => x,
         }    
     }
 }
@@ -46,8 +63,9 @@ impl RemoveObject {
         orientation: Direction,
         position: &Position,
     ) -> anyhow::Result<Self> {
+        let ot: u8 = object_type.into();
         let type_and_orientation =
-            ((object_type as u8) << 2) | (orientation.to_orientation()? & 0x3);
+            (ot << 2) | (orientation.to_orientation()? & 0x3);
         dbg!(type_and_orientation);
         Ok(RemoveObject {
             type_and_orientation,
@@ -108,7 +126,8 @@ impl SendObject {
         orientation: Direction,
         position: &Position,
     ) -> anyhow::Result<Self> {
-        let type_and_orientation = (object_type as u8) << 2 | orientation.to_orientation()? & 0x3;
+        let ot: u8 = object_type.into();
+        let type_and_orientation = ot << 2 | orientation.to_orientation()? & 0x3;
         Ok(SendObject {
             position_offset: to_offset(position),
             id,
