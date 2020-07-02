@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 profiler = ["thread_profiler"]
+test-equality = ["mithril-core/test-equality"]
 
 [dependencies]
 mithril-server-types = { path = "../types" }
@@ -27,3 +28,6 @@ features = ["empty", "network"]
 [dependencies.thread_profiler]
 version = "0.3"
 optional = true
+
+[dev-dependencies]
+amethyst_test = "0.6.0"

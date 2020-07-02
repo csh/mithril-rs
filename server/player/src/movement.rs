@@ -2,7 +2,6 @@
 use amethyst::{
     core::{Named, SystemDesc},
     ecs::{prelude::*, world::Index, RunningTime},
-    shrev::EventChannel,
 };
 
 use ahash::AHashMap;
@@ -149,7 +148,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                         skill_level: 420,
                         colours: vec![0, 0, 0, 0, 0],
                     };
-                    blocks.add_block(Box::new(block));
+                    blocks.add_block(block.into());
                     (
                         remote_player.0.id(),
                         PlayerUpdate::Add(
@@ -315,18 +314,16 @@ impl<'a> System<'a> for EntityPathfindingSystem {
                         } else {
                             lazy.insert(entity, PreviousPosition(next_step, Some(*current)));
                         }
+                    } else if let Some(previous) = previous {
+                        previous.0 = *current;
+                        previous.1 = None;
                     } else {
-                        if let Some(previous) = previous {
-                            previous.0 = *current;
-                            previous.1 = None;
-                        } else {
-                            lazy.insert(entity, PreviousPosition(*current, None));
-                        }
+                        lazy.insert(entity, PreviousPosition(*current, None));
                     }
 
                     *current = run_step.unwrap_or(next_step);
                 } else if let Some(previous) = previous {
-                    previous.0 = current.clone();
+                    previous.0 = *current;
                     previous.1 = None;
                 }
             });

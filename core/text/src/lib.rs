@@ -70,7 +70,7 @@ pub fn decompress(input: &[u8], len: usize) -> String {
     out.iter().collect::<String>()
 }
 
-pub fn compress(input: &String) -> Vec<u8> {
+pub fn compress(input: &str) -> Vec<u8> {
     let mut out = Vec::with_capacity(input.len());
     let table = build_pos_table();
 

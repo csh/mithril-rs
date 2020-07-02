@@ -336,6 +336,10 @@ impl MithrilTransportResource {
         let packet = packet.into();
         self.events.push_back((player, packet.into()));
     }
+
+    pub fn queued_packets(&self) -> &VecDeque<EntityPacketEvent> {
+        &self.events
+    }
 }
 
 fn prepare_isaac_seed(client_key: u64, server_key: u64, increment: u32) -> [u8; 32] {
@@ -347,6 +351,6 @@ fn prepare_isaac_seed(client_key: u64, server_key: u64, increment: u32) -> [u8; 
     seed.put(&[0u8; 16][..]);
 
     let mut actual_seed = [0u8; 32];
-    actual_seed.copy_from_slice(&mut seed);
+    actual_seed.copy_from_slice(&seed);
     actual_seed
 }

@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 use std::time::Duration;
 
+use amethyst::core::frame_limiter::FrameRateLimitStrategy;
 use amethyst::{
     network::simulation::tcp::TcpNetworkBundle, prelude::*, utils::application_dir, Result,
 };
@@ -48,6 +49,7 @@ fn main() -> Result<()> {
 
     let mut game = Application::build(assets_dir, LoadingState::default())?
         .with_fixed_step_length(Duration::from_millis(600))
+        .with_frame_limit(FrameRateLimitStrategy::Yield, 10)
         .build(game_data)?;
     game.run();
     Ok(())

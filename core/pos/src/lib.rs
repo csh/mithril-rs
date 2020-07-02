@@ -2,7 +2,7 @@ use specs::{Component, VecStorage};
 use std::fmt::Debug;
 use std::ops::{Add, Sub};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Direction {
     None = -1,
     NorthWest = 0,
@@ -13,6 +13,33 @@ pub enum Direction {
     SouthWest = 5,
     South = 6,
     SouthEast = 7,
+}
+
+impl Direction {
+    pub fn to_orientation(&self) -> anyhow::Result<u8> {
+        match &self {
+            Self::West | Self::NorthWest => Ok(0),
+            Self::North | Self::NorthEast => Ok(1),
+            Self::East | Self::SouthEast => Ok(2),
+            Self::South | Self::SouthWest => Ok(3),
+            _ => Err(anyhow::anyhow!("This direction is not an orientation")),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Hash, Clone, Copy, Debug)]
+pub struct Region {
+    pub x: i16,
+    pub y: i16,
+}
+
+impl From<&Position> for Region {
+    fn from(pos: &Position) -> Region {
+        Region {
+            x: pos.get_x() / 8,
+            y: pos.get_y() / 8,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

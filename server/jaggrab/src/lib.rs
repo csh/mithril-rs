@@ -17,9 +17,9 @@ pub use standalone::*;
 pub(crate) fn serve_request(mut stream: TcpStream, cache: &CacheFileSystem) -> anyhow::Result<()> {
     let mut buf = [0; 32];
     let read = stream.read(&mut buf)?;
-    let file = parse_request(&mut buf[..read])?;
+    let file = parse_request(&buf[..read])?;
     log::trace!("{} requested {:?}", stream.peer_addr()?, file);
     let data = cache.get_file(0, file as usize)?;
-    stream.write(&data[..])?;
+    stream.write_all(&data[..])?;
     Ok(())
 }

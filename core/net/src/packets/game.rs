@@ -1,21 +1,27 @@
 use super::prelude::*;
 use crate::PacketLength;
 use mithril_codegen::EventFromPacket;
-use mithril_pos::Position;
+use mithril_pos::{Position, Region};
 
 mod sync;
 use crate::packets::GameplayEvent;
 pub use sync::*;
 
+mod region;
+pub use region::*;
+
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct KeepAlive;
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct FocusUpdate {
     pub in_focus: bool,
 }
 
 #[derive(Debug, Default, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PublicChat {
     pub effects: u8,
     pub colour: u8,
@@ -41,6 +47,7 @@ impl Packet for PublicChat {
 }
 
 #[derive(Debug, Default, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PrivateChat {
     pub recipient: String,
     pub message: String,
@@ -62,17 +69,20 @@ impl Packet for PrivateChat {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ArrowKey {
     pub roll: u16,
     pub yaw: u16,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct EnteredAmount {
     pub amount: u32,
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ItemOption {
     pub option_index: usize,
     pub item_id: u16,
@@ -148,6 +158,7 @@ impl From<ItemOption> for GameplayEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ItemAction {
     pub action_index: usize,
     pub item_id: u16,
@@ -223,6 +234,7 @@ impl From<ItemAction> for GameplayEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct NpcAction {
     pub action_index: u16,
     // TODO: Investigate if correct name once NPC spawning is functional
@@ -275,6 +287,7 @@ impl From<NpcAction> for GameplayEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PlayerAction {
     pub action_index: u16,
     pub player_id: u16,
@@ -326,6 +339,7 @@ impl From<PlayerAction> for GameplayEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ObjectAction {
     pub action_index: u16,
     pub object_id: u16,
@@ -387,40 +401,47 @@ impl From<ObjectAction> for GameplayEvent {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct DialogueContinue {
     pub interface_id: u16,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct AddFriend {
     #[base37]
     pub username: String,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct AddIgnore {
     #[base37]
     pub username: String,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct RemoveFriend {
     #[base37]
     pub username: String,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct RemoveIgnore {
     #[base37]
     pub username: String,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct Button {
     pub interface_id: u16,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ItemOnItem {
     pub target_slot: u16,
     #[transform = "add"]
@@ -435,6 +456,7 @@ pub struct ItemOnItem {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ItemOnNpc {
     #[transform = "add"]
     pub source_id: u16,
@@ -447,6 +469,7 @@ pub struct ItemOnNpc {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ItemOnObject {
     pub interface_id: u16,
     #[endian = "little"]
@@ -463,6 +486,7 @@ pub struct ItemOnObject {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PrivacyOption {
     pub public_state: u8,
     pub private_state: u8,
@@ -470,19 +494,23 @@ pub struct PrivacyOption {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct Command {
     pub command: String,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct FlashingTabClicked {
     pub tab: u8,
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ClosedInterface;
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct MagicOnNpc {
     #[transform = "add"]
     #[endian = "little"]
@@ -492,6 +520,7 @@ pub struct MagicOnNpc {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct MagicOnItem {
     pub slot: u16,
     #[transform = "add"]
@@ -502,6 +531,7 @@ pub struct MagicOnItem {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct MagicOnPlayer {
     #[transform = "add"]
     pub index: u16,
@@ -510,6 +540,7 @@ pub struct MagicOnPlayer {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ReportAbuse {
     #[base37]
     pub username: String,
@@ -518,6 +549,7 @@ pub struct ReportAbuse {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SpamPacket(pub PacketLength);
 
 impl Packet for SpamPacket {
@@ -535,6 +567,7 @@ impl Packet for SpamPacket {
 }
 
 #[derive(Debug, Default, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct TakeTileItem {
     #[endian = "little"]
     pub y: u16,
@@ -544,6 +577,7 @@ pub struct TakeTileItem {
 }
 
 #[derive(Debug, Default, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct MouseClicked {
     pub delay: u64,
     pub right_click: bool,
@@ -569,6 +603,7 @@ impl Packet for MouseClicked {
 }
 
 #[derive(Debug, Default, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PlayerDesign {
     pub style: [u8; 7],
     pub colours: [u8; 5],
@@ -591,6 +626,7 @@ impl Packet for PlayerDesign {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct Walk {
     pub packet_type: PacketType,
     pub path: Vec<Position>,
@@ -626,6 +662,7 @@ impl Packet for Walk {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetModel {
     #[transform = "add"]
     #[endian = "little"]
@@ -634,14 +671,17 @@ pub struct SetWidgetModel {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct EnterAmount;
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct DisplayCrossbones {
     pub shown: bool,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SwitchTabInterface {
     pub interface_id: u16,
     #[transform = "add"]
@@ -649,6 +689,7 @@ pub struct SwitchTabInterface {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetNpcModel {
     #[transform = "add"]
     #[endian = "little"]
@@ -659,11 +700,13 @@ pub struct SetWidgetNpcModel {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct OpenInterface {
     pub id: u16,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetPlayerAction {
     #[transform = "negate"]
     pub slot: u8,
@@ -673,20 +716,24 @@ pub struct SetPlayerAction {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct DisplayTabInterface {
     #[transform = "negate"]
     pub tab_id: u8,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct Logout;
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct UpdateRunEnergy {
     pub energy: u8,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetText {
     pub message: String,
     #[transform = "add"]
@@ -694,6 +741,7 @@ pub struct SetWidgetText {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct UpdateSkill {
     pub skill_id: u8,
     pub experience: u32,
@@ -701,12 +749,14 @@ pub struct UpdateSkill {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct OpenDialogueInterface {
     #[endian = "little"]
     pub interface_id: u16,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetVisibility {
     pub is_visible: bool,
     #[transform = "add"]
@@ -714,26 +764,31 @@ pub struct SetWidgetVisibility {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetPlayerModel {
     #[endian = "little"]
     pub interface_id: u16,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetModelAnimation {
     pub interface_id: u16,
     pub animation_id: u16,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct CloseInterface;
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct UpdateWeight {
     pub weight: u16,
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct SetWidgetItemModel {
     #[endian = "little"]
     pub interface_id: u16,
@@ -742,6 +797,7 @@ pub struct SetWidgetItemModel {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct OpenInterfaceSidebar {
     #[transform = "add"]
     pub interface_id: u16,
@@ -749,6 +805,7 @@ pub struct OpenInterfaceSidebar {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct IdAssignment {
     #[transform = "add"]
     pub is_member: bool,
@@ -758,10 +815,12 @@ pub struct IdAssignment {
 }
 
 #[derive(Debug, Packet, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ServerMessage {
     pub message: String,
 }
 
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum Config {
     Byte(u16, u8),
     Int(u16, u32),
@@ -791,6 +850,7 @@ impl Packet for Config {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct RegionChange {
     pub position: Position,
 }
@@ -809,26 +869,26 @@ impl Packet for RegionChange {
     }
 }
 
-#[derive(Debug, EventFromPacket)]
+#[derive(Packet, Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct ClearRegion {
-    pub player: Position,
-    pub region: Position,
+    #[transform = "negate"]
+    local_x: u8,
+    #[transform = "subtract"]
+    local_y: u8,
 }
 
-impl Packet for ClearRegion {
-    fn try_write(&self, src: &mut BytesMut) -> anyhow::Result<()> {
-        let (local_x, local_y) = self.region.get_relative(self.player);
-        src.put_u8t(local_x, Transform::Negate);
-        src.put_u8t(local_y, Transform::Subtract);
-        Ok(())
-    }
+impl ClearRegion {
+    pub fn new(player: Position, region: Region) -> Self {
+        let local_x = ((region.x - (player.get_x() / 8 - 6)) * 8) as u8;
+        let local_y = ((region.y - (player.get_y() / 8 - 6)) * 8) as u8;
 
-    fn get_type(&self) -> PacketType {
-        PacketType::ClearRegion
+        ClearRegion { local_x, local_y }
     }
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct NpcSynchronization;
 
 impl Packet for NpcSynchronization {

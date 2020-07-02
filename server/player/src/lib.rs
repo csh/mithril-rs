@@ -6,6 +6,7 @@ use amethyst::{
 
 mod join;
 mod movement;
+mod objects;
 
 pub struct PlayerEntityBundle;
 
@@ -26,6 +27,12 @@ impl<'a, 'b> SystemBundle<'a, 'b> for PlayerEntityBundle {
         dispatcher.add(
             movement::PlayerSyncSystemDesc::default().build(world),
             "player_sync",
+            &["entity_pathfinding"],
+        );
+
+        dispatcher.add(
+            objects::RegionUpdateSystemDesc::default().build(world),
+            "object_sync",
             &["entity_pathfinding"],
         );
 

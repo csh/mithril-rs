@@ -4,12 +4,14 @@ use bytes::BytesMut;
 use std::fmt::Debug;
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum PacketEvent {
     Handshake(HandshakeEvent),
     Gameplay(GameplayEvent),
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum HandshakeEvent {
     HandshakeHello(HandshakeHello),
     HandshakeExchangeKey(HandshakeExchangeKey),
@@ -18,6 +20,7 @@ pub enum HandshakeEvent {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum GameplayEvent {
     // region Gameplay - Serverbound
     KeepAlive(KeepAlive),
@@ -82,7 +85,7 @@ pub enum GameplayEvent {
     SetWidgetItemModel(SetWidgetItemModel),
     //    SendObject(SendObject),
     ServerMessage(ServerMessage),
-    //    GroupedRegionUpdate(GroupedRegionUpdate),
+    GroupedRegionUpdate(GroupedRegionUpdate),
     //    RemoveObject(RemoveObject),
     //    SetUpdatedRegion(SetUpdatedRegion),
     //    RemoveTileItem(RemoveTileItem),
@@ -204,6 +207,7 @@ macro_rules! save_my_sanity {
                 GameplayEvent::SecondObjectAction(packet) => packet.$method($buf),
                 GameplayEvent::SetWidgetItemModel(packet) => packet.$method($buf),
                 GameplayEvent::ServerMessage(packet) => packet.$method($buf),
+                GameplayEvent::GroupedRegionUpdate(packet) => packet.$method($buf),
                 GameplayEvent::Logout(packet) => packet.$method($buf),
                 GameplayEvent::OpenInterface(packet) => packet.$method($buf),
                 GameplayEvent::UpdateRunEnergy(packet) => packet.$method($buf),
@@ -323,6 +327,7 @@ impl Packet for PacketEvent {
                 GameplayEvent::SecondObjectAction(packet) => packet.get_type(),
                 GameplayEvent::SetWidgetItemModel(packet) => packet.get_type(),
                 GameplayEvent::ServerMessage(packet) => packet.get_type(),
+                GameplayEvent::GroupedRegionUpdate(packet) => packet.get_type(),
                 GameplayEvent::Logout(packet) => packet.get_type(),
                 GameplayEvent::OpenInterface(packet) => packet.get_type(),
                 GameplayEvent::UpdateRunEnergy(packet) => packet.get_type(),
