@@ -98,9 +98,9 @@ macro_rules! item_or_zero {
         if let Some(item) = $item {
             $buffer.put_u16(0x200 + item.id);
         } else {
-            $buffer.put_u8(0);    
+            $buffer.put_u8(0);
         }
-    }
+    };
 }
 
 impl Appearance {
@@ -121,7 +121,7 @@ impl Appearance {
         } else {
             (0x100 + style[2]) as u16
         });
-        item_or_zero!(&equipment.shield, buf); 
+        item_or_zero!(&equipment.shield, buf);
         buf.put_u16(0x100 + style[3]);
         // legs
         buf.put_u16(if let Some(item) = &equipment.legs {
@@ -146,7 +146,7 @@ impl Appearance {
         if gender != 0 {
             buf.put_u8(0);
         } else {
-            buf.put_u16(0x100 + style[1]); 
+            buf.put_u16(0x100 + style[1]);
         }
     }
 }
