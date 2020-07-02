@@ -66,11 +66,11 @@ impl<'a> System<'a> for SendInitialPackets {
                 962,
             ];
 
-            for i in 0..open_tabs.len() {
+            for (i, interface_id) in open_tabs.iter().enumerate() {
                 transport.send(
                     player,
                     SwitchTabInterface {
-                        interface_id: open_tabs[i],
+                        interface_id: *interface_id,
                         tab_id: i as u8,
                     },
                 );
@@ -99,10 +99,7 @@ impl<'a> System<'a> for SendInitialPackets {
 
                 transport.send(
                     player,
-                    ClearRegion {
-                        player: Position::default(),
-                        region: Position::default(),
-                    },
+                    ClearRegion::new(Position::default(), (&Position::default()).into()),
                 );
 
                 transport.send(
@@ -130,7 +127,7 @@ impl<'a> System<'a> for SendInitialPackets {
                 };
 
                 let mut blocks = SyncBlocks::default();
-                blocks.add_block(Box::new(appearance));
+                blocks.add_block(appearance.into());
 
                 transport.send(
                     player,

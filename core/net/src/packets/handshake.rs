@@ -3,6 +3,7 @@ use mithril_codegen::EventFromPacket;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum LoginResponse {
     Handshake = 0,
     Retry = 1,
@@ -29,6 +30,7 @@ pub enum LoginResponse {
 }
 
 #[derive(Default, Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct HandshakeHello {
     pub name_hash: u8,
 }
@@ -46,6 +48,7 @@ impl Packet for HandshakeHello {
 }
 
 #[derive(Default, Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct HandshakeAttemptConnect {
     pub is_reconnect: bool,
     pub version: u8,
@@ -86,6 +89,7 @@ impl Packet for HandshakeAttemptConnect {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct HandshakeExchangeKey {
     session_key: u64,
     response_code: LoginResponse,
@@ -114,6 +118,7 @@ impl Packet for HandshakeExchangeKey {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct HandshakeConnectResponse(pub LoginResponse);
 
 impl Default for HandshakeConnectResponse {

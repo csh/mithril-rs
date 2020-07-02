@@ -6,50 +6,26 @@ use mithril_buf::{BitWriter, GameBufMut, Transform};
 use mithril_pos::Position;
 use mithril_text::{compress, encode_base37};
 use std::convert::TryInto;
-use std::fmt;
 
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum SyncBlockType {
-    ForceMovement,
-    Graphic,
-    Animation,
-    ForceChat,
-    Chat,
-    InteractingMob,
-    Appearance,
-    TurnToPosition,
-    HitUpdate,
-    SecondaryHitUpdate,
-}
-
-pub trait SyncBlock: Send + Sync + fmt::Debug {
-    fn get_type(&self) -> SyncBlockType;
-    fn write(&self, buffer: &mut BytesMut);
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Animation {
     id: u16,
     delay: u8,
 }
 
-impl SyncBlock for Animation {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::Animation
-    }
-
+impl Animation {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le(self.id);
         buf.put_u8t(self.delay, Transform::Negate);
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Item {
     pub id: u16,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Equipment {
     pub chest: Option<Item>,
     pub shield: Option<Item>,
@@ -59,19 +35,6 @@ pub struct Equipment {
     pub feet: Option<Item>,
 }
 
-impl Default for Equipment {
-    fn default() -> Self {
-        Equipment {
-            chest: None,
-            shield: None,
-            legs: None,
-            hat: None,
-            hands: None,
-            feet: None,
-        }
-    }
-}
-
 impl Equipment {
     #[allow(unused_variables)]
     fn get_slot(&self, slot: u8) -> Option<Item> {
@@ -79,13 +42,13 @@ impl Equipment {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AppearanceType {
     Npc(u16),
     Player(Equipment, Vec<u16>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Appearance {
     pub name: String,
     pub gender: u8,
@@ -95,11 +58,7 @@ pub struct Appearance {
     pub colours: Vec<u8>, // Enums are cool I tell you!
 }
 
-impl SyncBlock for Appearance {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::Appearance
-    }
-
+impl Appearance {
     fn write(&self, buf: &mut BytesMut) {
         // I'm cheating the system here, I'll fake buffers
         let mut buf2 = BytesMut::new(); // buf2 = new buffer in your case
@@ -207,7 +166,7 @@ impl Appearance {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Chat {
     message: String,
     color: u8,           // TODO: EnumSet pls
@@ -215,11 +174,7 @@ pub struct Chat {
     privilege_level: u8, // TODO: Enum pls
 }
 
-impl SyncBlock for Chat {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::Chat
-    }
-
+impl Chat {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le((self.color as u16) << 8 | self.effects as u16);
         buf.put_u8(self.privilege_level);
@@ -232,22 +187,18 @@ impl SyncBlock for Chat {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ForceChat {
     message: String,
 }
 
-impl SyncBlock for ForceChat {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::ForceChat
-    }
-
+impl ForceChat {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_rs_string(self.message.clone());
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ForceMovement {
     initial_pos: (u8, u8),
     final_pos: (u8, u8),
@@ -255,11 +206,7 @@ pub struct ForceMovement {
     direction: u8,
 }
 
-impl SyncBlock for ForceMovement {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::ForceMovement
-    }
-
+impl ForceMovement {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8t(self.initial_pos.0, Transform::Subtract);
         buf.put_u8t(self.initial_pos.1, Transform::Subtract);
@@ -271,25 +218,21 @@ impl SyncBlock for ForceMovement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Graphic {
     id: u16,
     height: u16,
     delay: u16,
 }
 
-impl SyncBlock for Graphic {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::Graphic
-    }
-
+impl Graphic {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le(self.id);
         buf.put_u32((self.height as u32) << 16 | self.delay as u32);
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct HitUpdate {
     damage: u8,
     damage_type: u8,
@@ -297,11 +240,7 @@ pub struct HitUpdate {
     max_health: u8,
 }
 
-impl SyncBlock for HitUpdate {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::HitUpdate
-    }
-
+impl HitUpdate {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8(self.damage);
         buf.put_u8t(self.damage_type, Transform::Add);
@@ -310,22 +249,18 @@ impl SyncBlock for HitUpdate {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct InteractingMob {
     index: u16,
 }
 
-impl SyncBlock for InteractingMob {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::InteractingMob
-    }
-
+impl InteractingMob {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16_le(self.index);
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SecondaryHitUpdate {
     damage: u8,
     damage_type: u8,
@@ -333,11 +268,7 @@ pub struct SecondaryHitUpdate {
     max_health: u8,
 }
 
-impl SyncBlock for SecondaryHitUpdate {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::SecondaryHitUpdate
-    }
-
+impl SecondaryHitUpdate {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u8(self.damage);
         buf.put_u8t(self.damage_type, Transform::Subtract);
@@ -346,23 +277,35 @@ impl SyncBlock for SecondaryHitUpdate {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TurnToPosition {
     position: (u16, u16),
 }
 
-impl SyncBlock for TurnToPosition {
-    fn get_type(&self) -> SyncBlockType {
-        SyncBlockType::TurnToPosition
-    }
-
+impl TurnToPosition {
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u16t_le(self.position.0 * 2 + 1, Transform::Add);
         buf.put_u16_le(self.position.1 * 2 + 1);
     }
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
+pub enum SyncBlock {
+    ForceMovement(ForceMovement),
+    Graphic(Graphic),
+    Animation(Animation),
+    ForceChat(ForceChat),
+    Chat(Chat),
+    InteractingMob(InteractingMob),
+    Appearance(Appearance),
+    TurnToPosition(TurnToPosition),
+    HitUpdate(HitUpdate),
+    SecondaryHitUpdate(SecondaryHitUpdate),
+}
+
+impl SyncBlock {}
+
+#[derive(Debug, PartialEq)]
 pub enum EntityMovement {
     Teleport {
         destination: Position,
@@ -377,7 +320,7 @@ pub enum EntityMovement {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct AddPlayer {
     id: u16,
     // From player
@@ -397,48 +340,74 @@ impl AddPlayer {
     }
 }
 
-impl SyncBlockType {
-    fn to_id(&self) -> u16 {
+impl SyncBlock {
+    fn to_player_id(&self) -> u16 {
         match self {
-            Self::ForceMovement => 0x400,
-            Self::Graphic => 0x100,
-            Self::Animation => 0x8,
-            Self::ForceChat => 0x4,
-            Self::Chat => 0x80,
-            Self::InteractingMob => 0x1,
-            Self::Appearance => 0x10,
-            Self::TurnToPosition => 0x2,
-            Self::HitUpdate => 0x20,
-            Self::SecondaryHitUpdate => 0x200,
+            Self::ForceMovement(_) => 0x400,
+            Self::Graphic(_) => 0x100,
+            Self::Animation(_) => 0x8,
+            Self::ForceChat(_) => 0x4,
+            Self::Chat(_) => 0x80,
+            Self::InteractingMob(_) => 0x1,
+            Self::Appearance(_) => 0x10,
+            Self::TurnToPosition(_) => 0x2,
+            Self::HitUpdate(_) => 0x20,
+            Self::SecondaryHitUpdate(_) => 0x200,
+        }
+    }
+
+    fn write(&self, buffer: &mut BytesMut) {
+        match self {
+            Self::ForceMovement(packet) => packet.write(buffer),
+            Self::Graphic(packet) => packet.write(buffer),
+            Self::Animation(packet) => packet.write(buffer),
+            Self::ForceChat(packet) => packet.write(buffer),
+            Self::Chat(packet) => packet.write(buffer),
+            Self::InteractingMob(packet) => packet.write(buffer),
+            Self::Appearance(packet) => packet.write(buffer),
+            Self::TurnToPosition(packet) => packet.write(buffer),
+            Self::HitUpdate(packet) => packet.write(buffer),
+            Self::SecondaryHitUpdate(packet) => packet.write(buffer),
         }
     }
 }
 
-#[derive(Debug, Default)]
-pub struct SyncBlocks {
-    blocks: AHashMap<SyncBlockType, Box<dyn SyncBlock>>,
-}
-
-macro_rules! send_sync_block {
-    ($block:ident, $map:expr, $buf:ident) => {
-        if let Some(value) = $map.get(&SyncBlockType::$block) {
-            value.write($buf);
+macro_rules! into_syncblock {
+    ($type:ident) => {
+        impl From<$type> for SyncBlock {
+            fn from(packet: $type) -> Self {
+                Self::$type(packet)
+            }
         }
     };
 }
 
+into_syncblock!(ForceMovement);
+into_syncblock!(Graphic);
+into_syncblock!(Animation);
+into_syncblock!(ForceChat);
+into_syncblock!(Chat);
+into_syncblock!(InteractingMob);
+into_syncblock!(Appearance);
+into_syncblock!(TurnToPosition);
+into_syncblock!(HitUpdate);
+into_syncblock!(SecondaryHitUpdate);
+
+const BLOCKS: [u16; 10] = [0x400, 0x100, 0x8, 0x4, 0x80, 0x1, 0x10, 0x2, 0x20, 0x200];
+
+#[derive(Debug, Default, PartialEq)]
+pub struct SyncBlocks {
+    blocks: AHashMap<u16, SyncBlock>,
+}
+
 impl SyncBlocks {
-    pub fn add_block(&mut self, block: Box<dyn SyncBlock>) -> &mut Self {
-        self.blocks.insert(block.get_type(), block);
+    pub fn add_block(&mut self, block: SyncBlock) -> &mut Self {
+        self.blocks.insert(block.to_player_id(), block);
         self
     }
 
     fn write(&self, buf: &mut BytesMut) {
-        let mask: u16 = self
-            .blocks
-            .keys()
-            .map(|t| t.to_id())
-            .fold(0, |acc, val| acc | val);
+        let mask: u16 = self.blocks.keys().fold(0, |acc, val| acc | val);
         if mask >= 0x100 {
             let mask = mask | 0x40;
             buf.put_u16_le(mask);
@@ -446,16 +415,10 @@ impl SyncBlocks {
             buf.put_u8(mask as u8);
         }
 
-        send_sync_block!(ForceMovement, self.blocks, buf);
-        send_sync_block!(Graphic, self.blocks, buf);
-        send_sync_block!(Animation, self.blocks, buf);
-        send_sync_block!(ForceChat, self.blocks, buf);
-        send_sync_block!(Chat, self.blocks, buf);
-        send_sync_block!(InteractingMob, self.blocks, buf);
-        send_sync_block!(Appearance, self.blocks, buf);
-        send_sync_block!(TurnToPosition, self.blocks, buf);
-        send_sync_block!(HitUpdate, self.blocks, buf);
-        send_sync_block!(SecondaryHitUpdate, self.blocks, buf);
+        BLOCKS
+            .iter()
+            .filter_map(|id| self.blocks.get(id))
+            .for_each(|block| block.write(buf));
     }
 
     fn has_updates(&self) -> bool {
@@ -464,6 +427,7 @@ impl SyncBlocks {
 }
 
 #[derive(Debug)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub enum PlayerUpdate {
     Remove(),
     Add(AddPlayer, SyncBlocks),
@@ -471,6 +435,7 @@ pub enum PlayerUpdate {
 }
 
 #[derive(Debug, EventFromPacket)]
+#[cfg_attr(feature = "test-equality", derive(PartialEq))]
 pub struct PlayerSynchronization {
     pub player_update: Option<PlayerUpdate>,
     pub other_players: Vec<PlayerUpdate>,
@@ -607,10 +572,10 @@ mod tests {
         ];
         let mut buf = BytesMut::new();
 
-        let force_chat = Box::new(ForceChat {
+        let force_chat = ForceChat {
             message: String::from("selling gf 10k"),
-        });
-        let appearance = Box::new(Appearance {
+        };
+        let appearance = Appearance {
             appearance_type: AppearanceType::Player(
                 Equipment::default(),
                 vec![0, 10, 18, 26, 33, 36, 42],
@@ -620,10 +585,10 @@ mod tests {
             combat_level: 69,
             skill_level: 0,
             colours: vec![0, 0, 0, 0, 0],
-        });
+        };
         let mut my_blocks = SyncBlocks::default();
-        my_blocks.add_block(force_chat);
-        my_blocks.add_block(appearance);
+        my_blocks.add_block(force_chat.into());
+        my_blocks.add_block(appearance.into());
 
         let remove_player = PlayerUpdate::Remove();
         let move_player = PlayerUpdate::Update(
@@ -631,10 +596,10 @@ mod tests {
             SyncBlocks::default(),
         );
 
-        let force_chat = Box::new(ForceChat {
+        let force_chat = ForceChat {
             message: String::from("selling gf 10k"),
-        });
-        let appearance = Box::new(Appearance {
+        };
+        let appearance = Appearance {
             appearance_type: AppearanceType::Player(
                 Equipment::default(),
                 vec![0, 10, 18, 26, 33, 36, 42],
@@ -644,10 +609,10 @@ mod tests {
             combat_level: 69,
             skill_level: 0,
             colours: vec![0, 0, 0, 0, 0],
-        });
+        };
         let mut add_blocks = SyncBlocks::default();
-        add_blocks.add_block(appearance);
-        add_blocks.add_block(force_chat);
+        add_blocks.add_block(appearance.into());
+        add_blocks.add_block(force_chat.into());
         let add_player = PlayerUpdate::Add(
             AddPlayer {
                 id: 1,

@@ -16,8 +16,8 @@ impl ToTokens for Transform {
         tokens.append(syn::Ident::new("Transform", Span::call_site()));
         let string = match self {
             Transform::Add => "Add",
-            Transform::Negate => "Subtract",
-            Transform::Subtract => "Negate",
+            Transform::Negate => "Negate",
+            Transform::Subtract => "Subtract",
         };
         tokens.append(Punct::new(':', Spacing::Joint));
         tokens.append(Punct::new(':', Spacing::Alone));
