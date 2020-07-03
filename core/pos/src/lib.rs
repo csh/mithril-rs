@@ -15,6 +15,18 @@ pub enum Direction {
     SouthEast = 7,
 }
 
+impl From<u8> for Direction {
+    fn from(value: u8) -> Direction {
+        match value {
+            0 => Direction::West,
+            1 => Direction::North,
+            2 => Direction::East,
+            3 => Direction::South,
+            _ => unreachable!()    
+        }    
+    }    
+}
+
 impl Direction {
     pub fn to_orientation(&self) -> anyhow::Result<u8> {
         match &self {

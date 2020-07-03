@@ -9,7 +9,7 @@ pub struct CollisionDetector {
 }
 
 impl CollisionDetector {
-    pub fn new(cache: &mut CacheFileSystem) -> anyhow::Result<Self> {
+    pub fn new(cache: &CacheFileSystem) -> anyhow::Result<Self> {
         let map_indices = defs::MapIndex::load(cache)?;
         let mut impassable = AHashMap::new();
         for index in map_indices.values() {

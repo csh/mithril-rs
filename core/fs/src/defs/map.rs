@@ -27,7 +27,7 @@ pub struct MapIndex {
 }
 
 impl MapIndex {
-    pub fn load(cache: &mut CacheFileSystem) -> crate::Result<HashMap<u16, Self>> {
+    pub fn load(cache: &CacheFileSystem) -> crate::Result<HashMap<u16, Self>> {
         let archive = cache.get_archive(0, 5)?;
         let mut buf = archive
             .get_entry("map_index")
@@ -90,7 +90,7 @@ pub struct MapObject {
 }
 
 impl MapObject {
-    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> crate::Result<Vec<Self>> {
+    pub fn load(cache: &CacheFileSystem, index: &MapIndex) -> crate::Result<Vec<Self>> {
         let buf = cache.get_file(4, index.object_file_id as usize)?;
         let mut buf = crate::compression::decompress_gzip(buf)?;
 
@@ -124,6 +124,18 @@ impl MapObject {
         Ok(objects)
     }
 
+    pub fn get_id(&self) -> u16 {
+        self.id    
+    }
+
+    pub fn get_variant(&self) -> u8 {
+        self.variant as u8 
+    }
+
+    pub fn get_orientation(&self) -> u8 {
+        self.orientation    
+    }
+ 
     pub fn get_x(&self) -> i16 {
         (self.packed_coordinates >> 6) & 0x3F
     }
@@ -132,8 +144,8 @@ impl MapObject {
         self.packed_coordinates & 0x3F
     }
 
-    pub fn get_plane(&self) -> i16 {
-        (self.packed_coordinates >> 12) & 0x3
+    pub fn get_plane(&self) -> u8 {
+        ((self.packed_coordinates >> 12) & 0x3) as u8
     }
 }
 
@@ -187,7 +199,7 @@ pub struct MapFile {
 }
 
 impl MapFile {
-    pub fn load(cache: &mut CacheFileSystem, index: &MapIndex) -> crate::Result<Self> {
+    pub fn load(cache: &CacheFileSystem, index: &MapIndex) -> crate::Result<Self> {
         let file = cache.get_file(4, index.map_file_id as usize)?;
 
         let mut buf = crate::compression::decompress_gzip(file)?;

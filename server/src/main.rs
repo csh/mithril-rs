@@ -7,10 +7,15 @@ use amethyst::{
 };
 
 use mithril::{
-    core::fs::CacheFileSystem,
+    core::{
+        fs::{CacheFileSystem, defs},
+        pos::*,
+        net::packets::ObjectType,
+    },
     net::MithrilNetworkBundle,
     player::PlayerEntityBundle,
     types::{
+        components::{StaticObject, WorldObjectData},
         auth::{AlwaysAllowStrategy, Authenticator},
         CollisionDetector,
     },
@@ -82,8 +87,8 @@ impl SimpleState for LoadingState {
             }
         };
 
-        let mut cache = data.world.get_mut::<CacheFileSystem>().unwrap();
-        match CollisionDetector::new(&mut cache) {
+        let cache = &data.world.read_resource::<CacheFileSystem>();
+        match CollisionDetector::new(cache) {
             Ok(detector) => data.world.insert(detector),
             Err(cause) => {
                 log::error!("Failed to map collisions; {}", cause);
@@ -91,6 +96,39 @@ impl SimpleState for LoadingState {
             }
         }
 
+        let map_indices = match defs::MapIndex::load(cache) {
+            Ok(indices) => indices.values(),
+            Err(cause) => {
+                log::error!("Failed to load map indices; {}", cause);
+                return;    
+            }    
+        };
+
+        for idx in map_indices {
+            let object_defs = match defs::MapObject::load(cache, idx) {
+                Ok(defs) => defs,
+                Err(cause) => {
+                    log::error!("Failed to load map objects; {}", cause);
+                    return;    
+                }    
+            };
+            for object_def in object_defs {
+                let id = object_def.get_id();
+                let object_type: ObjectType = object_def.get_variant().into();
+                let orientation: Direction = object_def.get_orientation().into();
+                let pos = Position {
+                    x: object_def.get_x(),
+                    y: object_def.get_y(),
+                    plane: object_def.get_plane()    
+                };
+                data.world.create_entity()
+                    .with(StaticObject)
+                    .with(pos)
+                    .with(WorldObjectData::Object {id, object_type, orientation})
+                    .build();
+            }
+        }
+        
         data.world.insert(Authenticator::new(AlwaysAllowStrategy));
         self.loaded = true;
     }

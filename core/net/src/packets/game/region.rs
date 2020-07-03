@@ -17,6 +17,22 @@ pub enum ObjectType {
     FloorDecoration = 12,
 }
 
+impl From<u8> for ObjectType {
+    fn from(num: u8) -> ObjectType {
+        match num {
+            0 => ObjectType::LengthwiseWall,
+            1 => ObjectType::TriangularCorner,
+            2 => ObjectType::WallCorner,
+            3 => ObjectType::RectangularCorner,
+            9 => ObjectType::DiagonalWall,
+            10 => ObjectType::Interactable,
+            11 => ObjectType::DiagonalInteractable,
+            12 => ObjectType::FloorDecoration,
+            _ => unreachable!()
+        }    
+    }
+}
+
 #[derive(Debug, Packet, PartialEq)]
 pub struct RemoveObject {
     #[transform = "negate"]
