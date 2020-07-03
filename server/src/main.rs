@@ -8,15 +8,15 @@ use amethyst::{
 
 use mithril::{
     core::{
-        fs::{CacheFileSystem, defs},
-        pos::*,
+        fs::{defs, CacheFileSystem},
         net::packets::ObjectType,
+        pos::*,
     },
     net::MithrilNetworkBundle,
     player::PlayerEntityBundle,
     types::{
-        components::{StaticObject, WorldObjectData},
         auth::{AlwaysAllowStrategy, Authenticator},
+        components::{StaticObject, WorldObjectData},
         CollisionDetector,
     },
 };
@@ -77,18 +77,15 @@ impl SimpleState for LoadingState {
             Err(e) => panic!(e),
         };
 
-        match CacheFileSystem::open(cache_path) {
-            Ok(cache) => {
-                data.world.insert(cache);
-            }
+        let cache = match CacheFileSystem::open(cache_path) {
+            Ok(cache) => cache,
             Err(cause) => {
                 log::error!("Failed to open cache; {}", cause);
                 return;
             }
         };
 
-        let cache = &data.world.read_resource::<CacheFileSystem>();
-        match CollisionDetector::new(cache) {
+        match CollisionDetector::new(&cache) {
             Ok(detector) => data.world.insert(detector),
             Err(cause) => {
                 log::error!("Failed to map collisions; {}", cause);
@@ -96,39 +93,47 @@ impl SimpleState for LoadingState {
             }
         }
 
-        let map_indices = match defs::MapIndex::load(cache) {
-            Ok(indices) => indices.values(),
+        let map_indices = match defs::MapIndex::load(&cache) {
+            Ok(indices) => indices,
             Err(cause) => {
                 log::error!("Failed to load map indices; {}", cause);
-                return;    
-            }    
+                return;
+            }
         };
 
-        for idx in map_indices {
-            let object_defs = match defs::MapObject::load(cache, idx) {
+        for idx in map_indices.values() {
+            let object_defs = match defs::MapObject::load(&cache, idx) {
                 Ok(defs) => defs,
                 Err(cause) => {
                     log::error!("Failed to load map objects; {}", cause);
-                    return;    
-                }    
+                    return;
+                }
             };
             for object_def in object_defs {
                 let id = object_def.get_id();
                 let object_type: ObjectType = object_def.get_variant().into();
                 let orientation: Direction = object_def.get_orientation().into();
-                let pos = Position {
-                    x: object_def.get_x(),
-                    y: object_def.get_y(),
-                    plane: object_def.get_plane()    
-                };
-                data.world.create_entity()
+                // TODO: Make Position or core/fs module more consistent with data types
+                let pos = Position::new_with_height(
+                    idx.get_x() as i16 + object_def.get_x(),
+                    idx.get_y() as i16 + object_def.get_y(),
+                    object_def.get_plane(),
+                )
+                .expect("all cache planes should be valid");
+                data.world
+                    .create_entity()
                     .with(StaticObject)
                     .with(pos)
-                    .with(WorldObjectData::Object {id, object_type, orientation})
+                    .with(WorldObjectData::Object {
+                        id,
+                        object_type,
+                        orientation,
+                    })
                     .build();
             }
         }
-        
+
+        data.world.insert(cache);
         data.world.insert(Authenticator::new(AlwaysAllowStrategy));
         self.loaded = true;
     }
