@@ -315,12 +315,26 @@ pub struct AddPlayer {
 }
 
 impl AddPlayer {
-    pub fn new(id: u16, player_position: Position, new_player_position: Position) -> AddPlayer {
+    pub fn new(id: u16, player_position: Position, new_player_position: Position) -> anyhow::Result<AddPlayer> {
         let (dx, dy) = new_player_position - player_position;
-        AddPlayer {
-            id,
-            dx: dx as u8,
-            dy: dy as u8,
+        let dx = if dx < 0 {
+            dx + 32
+        } else {
+            dx    
+        };
+        let dy = if dy < 0 {
+            dy + 32    
+        } else {
+            dy
+        };
+        if !(0..32).contains(&dx) || !(0..32).contains(&dy) {
+            Err(anyhow::anyhow!("Player outside of spawning range"))
+        } else {
+            Ok(AddPlayer {
+                id,
+                dx: dx as u8,
+                dy: dy as u8,
+            })
         }
     }
 }
@@ -440,10 +454,10 @@ impl Packet for PlayerSynchronization {
                 .other_players
                 .iter()
                 .filter(|update| {
-                    if let PlayerUpdate::Update(_, _) = update {
-                        true
-                    } else {
+                    if let PlayerUpdate::Add(_, _) = update {
                         false
+                    } else {
+                        true
                     }
                 })
                 .count();
@@ -543,7 +557,7 @@ mod tests {
     #[test]
     fn test_player_sync() {
         const PACKET: [u8; 146] = [
-            0xE2, 0xC1, 0xA8, 0x0F, 0xB0, 0x00, 0x70, 0x03, 0xFF, 0x80, 0x14, 0x73, 0x65, 0x6C,
+            0xE2, 0xC1, 0xA8, 0x17, 0xB0, 0x00, 0x70, 0x03, 0xFF, 0x80, 0x14, 0x73, 0x65, 0x6C,
             0x6C, 0x69, 0x6E, 0x67, 0x20, 0x67, 0x66, 0x20, 0x31, 0x30, 0x6B, 0x0A, 0xCD, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x12, 0x00, 0x01, 0x1A, 0x01, 0x24, 0x01, 0x00,
             0x01, 0x21, 0x01, 0x2A, 0x01, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x28, 0x03,

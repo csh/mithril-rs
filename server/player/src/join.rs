@@ -45,7 +45,7 @@ impl<'a> System<'a> for SendInitialPackets {
                 player,
                 IdAssignment {
                     is_member: true,
-                    entity_id: 1,
+                    entity_id: player.id() as u16,
                 },
             );
 

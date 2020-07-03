@@ -69,7 +69,7 @@ impl Sub for Position {
     type Output = (i16, i16);
 
     fn sub(self, rhs: Self) -> Self::Output {
-        (rhs.x - self.x, rhs.y - self.y)
+        (self.x - rhs.x, self.y - rhs.y)
     }
 }
 

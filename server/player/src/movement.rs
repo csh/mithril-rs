@@ -156,7 +156,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                                 remote_player.0.id() as u16,
                                 *current_pos,
                                 *remote_player.1,
-                            ),
+                            ).expect("Failed to add player"),
                             blocks,
                         ),
                     )
