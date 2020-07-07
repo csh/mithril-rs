@@ -3,13 +3,14 @@ use amethyst::{
     ecs::prelude::*,
 };
 use hibitset::BitSet;
+use ahash::AHashSet;
 
 use mithril_core::{
     net::packets::{IdAssignment, ServerMessage, SwitchTabInterface, UpdateSkill},
     pos::Position,
 };
 use mithril_server_net::MithrilTransportResource;
-use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleObjects, WorldObjectData, Deleted};
+use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleRegions, VisibleObjects, WorldObjectData, Deleted};
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -158,6 +159,7 @@ impl<'a> System<'a> for SendInitialPackets {
             lazy.insert(player, Position::default());
             lazy.insert(player, Pathfinder::default());
             lazy.insert(player, VisiblePlayers::default());
+            lazy.insert(player, VisibleRegions(AHashSet::new()));
             lazy.insert(player, VisibleObjects(bitset));
         }
     }

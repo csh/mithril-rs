@@ -69,16 +69,16 @@ impl<'a> System<'a> for InteractSystem {
                             _ => false
                         }
                     })
-                    .map(|(entity, _, pos)| (entity, pos))
+                    .map(|(entity, data, pos)| (entity, pos, data))
                     .nth(0);
 
-                let (entity, pos) = match entity {
+                let (entity, pos, data) = match entity {
                     Some(entity) => entity,
                     None => continue
                 };
 
                 if action_str == "Open" && def.name == "Door" {
-                    println!("Opening door");
+                    println!("Opening door {:#?}", data);
                     dbg!(pos);
                     deleted.insert(entity, Deleted).expect("Oof");
                 }

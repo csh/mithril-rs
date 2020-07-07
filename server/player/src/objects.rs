@@ -118,6 +118,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
                                             .iter()
                                             .filter(|(_, deleted, _, _, known)| *deleted && *known)
                                             .map(|(_entity, _, pos, data, _)| -> RegionUpdate {
+                                                println!("Deleting static object! {:#?}", data);
                                                 match data {
                                                     WorldObjectData::Object {
                                                         id: _,
@@ -249,7 +250,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
         for (player, visible_regions, visible_objects, updates) in player_with_updates {
             for (clear_region, grouped_updates) in updates {
                 if let Some(clear_region) = clear_region {
-                    net.send(player, clear_region);
+                    //net.send(player, clear_region);
                 }
                 if let Some(grouped_updates) = grouped_updates {
                     net.send(player, grouped_updates);
