@@ -56,9 +56,9 @@ impl From<&Position> for Region {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Position {
-    x: i16,
-    y: i16,
-    plane: u8,
+    pub x: i16,
+    pub y: i16,
+    pub plane: u8,
 }
 
 impl Add for Position {

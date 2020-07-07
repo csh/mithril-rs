@@ -1,5 +1,6 @@
 use std::net::TcpListener;
 use std::time::Duration;
+use ahash::AHashMap;
 
 use amethyst::core::frame_limiter::FrameRateLimitStrategy;
 use amethyst::{
@@ -18,6 +19,7 @@ use mithril::{
         auth::{AlwaysAllowStrategy, Authenticator},
         components::{StaticObject, WorldObjectData},
         CollisionDetector,
+        ObjectDefinitions,
     },
 };
 
@@ -136,7 +138,14 @@ impl SimpleState for LoadingState {
         }
 
         match defs::ObjectDefinition::load(&cache) {
-            Ok(defs) => data.world.insert(defs),
+            Ok(defs) => {
+                let defs: AHashMap<_, _> = defs.into_iter()
+                    .fold(AHashMap::new(), |mut map, def| {
+                        map.insert(def.id, def);
+                        map    
+                    });
+                data.world.insert(ObjectDefinitions::new(defs));
+            }
             Err(cause) => {
                 log::error!("Failed to load object definitions; {}", cause);
                 return;    

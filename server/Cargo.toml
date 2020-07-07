@@ -27,6 +27,7 @@ mithril-server-types = { path = "types" }
 mithril-server-net = { path = "net" }
 mithril-core = { path = "../core" }
 
+ahash = "0.3.8"
 anyhow = "1.0"
 log = "0.4"
 

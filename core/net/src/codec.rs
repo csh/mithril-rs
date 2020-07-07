@@ -10,7 +10,7 @@ pub fn encode_packet(
     packet: PacketEvent,
     dst: &mut BytesMut,
 ) -> anyhow::Result<()> {
-    log::info!("Encoding a {:?}", packet.get_type());
+    //log::info!("Encoding a {:?}", packet.get_type());
     let isaac = match isaac {
         Some(isaac) => {
             debug_assert!(

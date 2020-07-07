@@ -2,13 +2,14 @@ use amethyst::{
     core::{Named, SystemDesc},
     ecs::prelude::*,
 };
+use hibitset::BitSet;
 
 use mithril_core::{
     net::packets::{IdAssignment, ServerMessage, SwitchTabInterface, UpdateSkill},
     pos::Position,
 };
 use mithril_server_net::MithrilTransportResource;
-use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers};
+use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleObjects, WorldObjectData, Deleted};
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -32,9 +33,11 @@ impl<'a> System<'a> for SendInitialPackets {
         Write<'a, MithrilTransportResource>,
         ReadStorage<'a, NewPlayer>,
         ReadStorage<'a, Named>,
+        ReadStorage<'a, WorldObjectData>,
+        ReadStorage<'a, Deleted>,
     );
 
-    fn run(&mut self, (entities, lazy, mut transport, new_player, named): Self::SystemData) {
+    fn run(&mut self, (entities, lazy, mut transport, new_player, named, object_data, deleted): Self::SystemData) {
         #[cfg(feature = "profiler")]
         profile_scope!("player join");
 
@@ -145,9 +148,17 @@ impl<'a> System<'a> for SendInitialPackets {
                 )
             }
 
+            let bitset = (&entities, &object_data, !&deleted)
+                .join()
+                .fold(BitSet::new(), |mut bitset, (entity, ..)| {
+                    bitset.add(entity.id());
+                    bitset    
+                });
+
             lazy.insert(player, Position::default());
             lazy.insert(player, Pathfinder::default());
             lazy.insert(player, VisiblePlayers::default());
+            lazy.insert(player, VisibleObjects(bitset));
         }
     }
 }

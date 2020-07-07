@@ -14,6 +14,7 @@ mithril-server-net = { path = "../net" }
 mithril-core = { path = "../../core" }
 
 ahash = "0.3.8"
+hibitset = "0.6.3"
 indexmap = "1.4.0"
 parking_lot = "0.10.2"
 specs = { version = "0.16", features = ["shred-derive"] }

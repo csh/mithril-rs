@@ -9,25 +9,25 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug)]
 pub struct ObjectDefinition {
-    id: u16,
-    name: String,
-    examine_text: String,
-    impenetrable: bool,
-    interactive: bool,
-    obstructive: bool,
-    solid: bool,
+    pub id: u16,
+    pub name: String,
+    pub examine_text: String,
+    pub impenetrable: bool,
+    pub interactive: bool,
+    pub obstructive: bool,
+    pub solid: bool,
     #[cfg_attr(
         feature = "serde",
         serde(skip_serializing_if = "crate::skip_empty_options")
     )]
-    interact_actions: [Option<String>; 10],
-    length: u8,
-    width: u8,
-    rotated: bool,
-    casts_shadow: bool,
-    hug_terrain: bool,
-    low_priority_shading: bool,
-    wall: bool,
+    pub interact_actions: [Option<String>; 10],
+    pub length: u8,
+    pub width: u8,
+    pub rotated: bool,
+    pub casts_shadow: bool,
+    pub hug_terrain: bool,
+    pub low_priority_shading: bool,
+    pub wall: bool,
 }
 
 impl Default for ObjectDefinition {
