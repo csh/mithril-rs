@@ -16,7 +16,7 @@ use mithril_core::{
 use mithril_server_net::{
     EntityPacketEvent, GameplayEvent, MithrilTransportResource, PacketEvent, PacketEventChannel,
 };
-use mithril_server_types::{CollisionDetector, Pathfinder, PreviousPosition, VisiblePlayers};
+use mithril_server_types::{CollisionDetector, Pathfinder, PreviousPosition, VisiblePlayers, Updates};
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -36,6 +36,7 @@ pub struct PlayerSyncStorage<'a> {
     names: ReadStorage<'a, Named>,
     positions: ReadStorage<'a, Position>,
     previous_positions: ReadStorage<'a, PreviousPosition>,
+    updates: WriteStorage<'a, Updates>,
 }
 
 pub struct PlayerSyncSystem;
@@ -49,9 +50,18 @@ impl<'a> System<'a> for PlayerSyncSystem {
     );
 
     #[allow(clippy::type_complexity)]
-    fn run(&mut self, (entities, mut net, sync, mut visible_players): Self::SystemData) {
+    fn run(&mut self, (entities, mut net, mut sync, mut visible_players): Self::SystemData) {
         #[cfg(feature = "profiler")]
         profile_scope!("player sync");
+
+        let blocks_by_player: AHashMap<_, _> = (&entities, &mut sync.updates)
+            .join()
+            .fold(AHashMap::new(), |mut map, (entity, updates)| {
+                let mut blocks = SyncBlocks::default();
+                updates.0.drain(..).for_each(|update| {blocks.add_block(update);});
+                map.insert(entity.id(), blocks);
+                map
+            });
 
         for (entity, named, current_pos, previous, visible) in (
             &entities,
@@ -89,11 +99,14 @@ impl<'a> System<'a> for PlayerSyncSystem {
                     hash
                 });
 
+            let my_blocks = blocks_by_player.get(&entity.id()).map_or_else(|| SyncBlocks::default(), |b| b.clone());
+
             let mut updates = visible
                 .0
                 .iter()
                 .map(|idx| {
                     if let Some(remote_player) = by_id.get(idx) {
+                        let blocks = blocks_by_player.get(&remote_player.0.id()).map_or_else(|| SyncBlocks::default(), |b| b.clone());
                         if let Some(previous) = remote_player.2 {
                             let direction = previous.0.direction_between(*remote_player.1);
                             let movement = if let Some(run_step) = previous.1 {
@@ -114,9 +127,9 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             } else {
                                 None
                             };
-                            PlayerUpdate::Update(movement, SyncBlocks::default())
+                            PlayerUpdate::Update(movement, blocks)
                         } else {
-                            PlayerUpdate::Update(None, SyncBlocks::default())
+                            PlayerUpdate::Update(None, blocks)
                         }
                     } else {
                         PlayerUpdate::Remove()
@@ -130,7 +143,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                 .values()
                 .filter(|(entity, _, _, _)| !visible.0.contains(&entity.id()))
                 .map(|remote_player| {
-                    let mut blocks = SyncBlocks::default();
+                    let mut blocks = blocks_by_player.get(&entity.id()).map_or_else(|| SyncBlocks::default(), |b| b.clone());
 
                     let mut equipment = Equipment::default();
                     equipment.hat = Some(Item { id: 1040 });
@@ -201,7 +214,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                                 current: *current_pos,
                                 changed_region: update_region,
                             }),
-                            SyncBlocks::default(),
+                            my_blocks,
                         )),
                         other_players: updates,
                     },
@@ -216,7 +229,7 @@ impl<'a> System<'a> for PlayerSyncSystem {
                             Some(EntityMovement::Move {
                                 direction: direction as i32,
                             }),
-                            SyncBlocks::default(),
+                            my_blocks,
                         )),
                         other_players: updates,
                     },
@@ -225,13 +238,18 @@ impl<'a> System<'a> for PlayerSyncSystem {
                 net.send(
                     entity,
                     PlayerSynchronization {
-                        player_update: None,
+                        player_update: Some(PlayerUpdate::Update(
+                            None,
+                            my_blocks,
+                        )),
                         other_players: updates,
                     },
                 );
             }
 
             net.send(entity, NpcSynchronization);
+
+            
         }
     }
 }

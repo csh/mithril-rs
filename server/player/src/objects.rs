@@ -46,6 +46,9 @@ impl<'a> System<'a> for RegionUpdateSystem {
     );
 
     fn run(&mut self, (entities, position, mut player, object, mut net): Self::SystemData) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("player sync");
+
         let static_flag = object.static_flag;
         let deleted = object.deleted;
         let object_data = object.object_data;

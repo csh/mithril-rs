@@ -7,10 +7,10 @@ use mithril_pos::Position;
 use mithril_text::{compress, encode_base37};
 use std::convert::TryInto;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Animation {
-    id: u16,
-    delay: u8,
+    pub id: u16,
+    pub delay: u8,
 }
 
 impl Animation {
@@ -20,12 +20,12 @@ impl Animation {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Item {
     pub id: u16,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Equipment {
     pub hat: Option<Item>,
     pub cape: Option<Item>,
@@ -40,13 +40,13 @@ pub struct Equipment {
     pub arrows: Option<Item>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AppearanceType {
     Npc(u16),
     Player(Equipment, Vec<u16>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Appearance {
     pub name: String,
     pub gender: u8,
@@ -151,7 +151,7 @@ impl Appearance {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Chat {
     message: String,
     color: u8,           // TODO: EnumSet pls
@@ -172,9 +172,9 @@ impl Chat {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ForceChat {
-    message: String,
+    pub message: String,
 }
 
 impl ForceChat {
@@ -183,7 +183,7 @@ impl ForceChat {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ForceMovement {
     initial_pos: (u8, u8),
     final_pos: (u8, u8),
@@ -203,7 +203,7 @@ impl ForceMovement {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Graphic {
     id: u16,
     height: u16,
@@ -217,7 +217,7 @@ impl Graphic {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct HitUpdate {
     damage: u8,
     damage_type: u8,
@@ -234,7 +234,7 @@ impl HitUpdate {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct InteractingMob {
     index: u16,
 }
@@ -245,7 +245,7 @@ impl InteractingMob {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SecondaryHitUpdate {
     damage: u8,
     damage_type: u8,
@@ -262,7 +262,7 @@ impl SecondaryHitUpdate {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TurnToPosition {
     position: (u16, u16),
 }
@@ -274,7 +274,7 @@ impl TurnToPosition {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum SyncBlock {
     ForceMovement(ForceMovement),
     Graphic(Graphic),
@@ -380,7 +380,7 @@ into_syncblock!(SecondaryHitUpdate);
 
 const BLOCKS: [u16; 10] = [0x400, 0x100, 0x8, 0x4, 0x80, 0x1, 0x10, 0x2, 0x20, 0x200];
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct SyncBlocks {
     blocks: AHashMap<u16, SyncBlock>,
 }
@@ -520,7 +520,12 @@ impl PlayerSynchronization {
                         writer.put_bits(1, if blocks.has_updates() { 1 } else { 0 });
                     }
                     None => {
-                        writer.put_bits(1, 0);
+                        if blocks.has_updates() {
+                            writer.put_bits(1, 1);
+                            writer.put_bits(2, 0);
+                        } else {
+                            writer.put_bits(1, 0);    
+                        }
                     }
                 }
                 if blocks.has_updates() {

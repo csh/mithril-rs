@@ -10,7 +10,11 @@ pub fn encode_packet(
     packet: PacketEvent,
     dst: &mut BytesMut,
 ) -> anyhow::Result<()> {
-    //log::info!("Encoding a {:?}", packet.get_type());
+    match packet.get_type() {
+        PacketType::PlayerSynchronization => {},
+        PacketType::NpcSynchronization => {},
+        _ => log::info!("Encoding a {:?}", packet.get_type()),
+    };
     let isaac = match isaac {
         Some(isaac) => {
             debug_assert!(
@@ -34,6 +38,11 @@ pub fn encode_packet(
 
     let packet_type = packet.get_type();
     let packet_id = packet_type.get_id().id.wrapping_add(isaac.gen::<u8>());
+    if packet_type == PacketType::GroupedRegionUpdate {
+        dbg!(packet_id);
+        dbg!(packet);
+        dbg!(encoding_buf.len()); 
+    }
     dst.put_u8(packet_id);
     match packet_type.packet_length() {
         Some(PacketLength::Fixed(len)) => debug_assert_eq!(
@@ -42,7 +51,10 @@ pub fn encode_packet(
             "packet length is fixed but did not match"
         ),
         Some(PacketLength::VariableByte) => dst.put_u8(encoding_buf.len() as u8),
-        Some(PacketLength::VariableShort) => dst.put_u16(encoding_buf.len() as u16),
+        Some(PacketLength::VariableShort) => {
+            dbg!(packet_type);
+            dst.put_u16(encoding_buf.len() as u16)
+        }
         None => {}
     }
     dst.extend_from_slice(encoding_buf);

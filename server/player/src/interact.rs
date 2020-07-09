@@ -14,11 +14,13 @@ use mithril_core::{
     pos::Position,
     net::packets::{
         GameplayEvent,
-        PacketEvent
+        PacketEvent,
+        ForceChat,
+        Animation,
     },
 
 };
-use mithril_server_types::{Deleted, WorldObjectData, ObjectDefinitions};
+use mithril_server_types::{Deleted, WorldObjectData, ObjectDefinitions, Updates};
 use mithril_server_net::{PacketEventChannel, EntityPacketEvent, MithrilTransportResource};
 
 pub struct InteractSystem {
@@ -35,9 +37,10 @@ impl<'a> System<'a> for InteractSystem {
         ReadStorage<'a, Position>,
         ReadStorage<'a, WorldObjectData>,
         WriteStorage<'a, Deleted>,
+        WriteStorage<'a, Updates>,
     );
 
-    fn run(&mut self, (entities, channel, net, definitions, lazy, position, object_data, mut deleted): Self::SystemData) { 
+    fn run(&mut self, (entities, channel, net, definitions, lazy, position, object_data, mut deleted, mut updates): Self::SystemData) { 
         for (player, event) in channel.read(&mut self.reader) {
             if let PacketEvent::Gameplay(gameplay_event) = event {
                 let action = match gameplay_event {
@@ -78,8 +81,14 @@ impl<'a> System<'a> for InteractSystem {
                 };
 
                 if action_str == "Open" && def.name == "Door" {
-                    println!("Opening door {:#?}", data);
-                    dbg!(pos);
+                    updates.get_mut(*player).unwrap().0.push(ForceChat {
+                        message: "BOOM".to_owned(),
+                    }.into());
+                    updates.get_mut(*player).unwrap().0.push(Animation {
+                        id: 422,
+                        delay: 0,
+                    }.into());
+
                     deleted.insert(entity, Deleted).expect("Oof");
                 }
             }

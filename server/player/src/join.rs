@@ -10,7 +10,7 @@ use mithril_core::{
     pos::Position,
 };
 use mithril_server_net::MithrilTransportResource;
-use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleRegions, VisibleObjects, WorldObjectData, Deleted};
+use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleRegions, VisibleObjects, WorldObjectData, Deleted, Updates};
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -161,6 +161,7 @@ impl<'a> System<'a> for SendInitialPackets {
             lazy.insert(player, VisiblePlayers::default());
             lazy.insert(player, VisibleRegions(AHashSet::new()));
             lazy.insert(player, VisibleObjects(bitset));
+            lazy.insert(player, Updates(vec![]));
         }
     }
 }

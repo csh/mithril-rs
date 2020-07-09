@@ -658,7 +658,7 @@ impl PacketType {
             PacketType::ServerMessage => Some(PacketLength::VariableByte),
             PacketType::SetPlayerAction => Some(PacketLength::VariableByte),
             PacketType::ForwardPrivateChat => Some(PacketLength::VariableByte),
-            PacketType::GroupedRegionUpdate => Some(PacketLength::VariableByte),
+            PacketType::GroupedRegionUpdate => Some(PacketLength::VariableShort),
             PacketType::IgnoreList => Some(PacketLength::VariableShort),
             PacketType::NpcSynchronization => Some(PacketLength::VariableShort),
             PacketType::PlayerSynchronization => Some(PacketLength::VariableShort),

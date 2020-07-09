@@ -4,6 +4,7 @@ use indexmap::set::IndexSet;
 use specs::world::Index;
 use specs::{Component, NullStorage, VecStorage};
 
+use mithril_core::net::packets::SyncBlock;
 use mithril_core::pos::{Position, Region};
 
 #[derive(Default, Debug)]
@@ -56,3 +57,9 @@ impl Viewport {
             && (min_vy..=max_vy).contains(&position.get_y())
     }
 }
+
+#[derive(Default, Component)]
+#[storage(VecStorage)]
+pub struct Updates (
+    pub Vec<SyncBlock>
+);
