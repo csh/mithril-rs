@@ -10,7 +10,7 @@ use mithril_core::{
     pos::Position,
 };
 use mithril_server_net::MithrilTransportResource;
-use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleRegions, VisibleObjects, WorldObjectData, Deleted, Updates};
+use mithril_server_types::{NewPlayer, Pathfinder, VisiblePlayers, VisibleRegions, VisibleObjects, WorldObjectData, Deleted, Updates, StaticObject};
 
 #[cfg(feature = "profiler")]
 use thread_profiler::profile_scope;
@@ -34,11 +34,11 @@ impl<'a> System<'a> for SendInitialPackets {
         Write<'a, MithrilTransportResource>,
         ReadStorage<'a, NewPlayer>,
         ReadStorage<'a, Named>,
-        ReadStorage<'a, WorldObjectData>,
+        ReadStorage<'a, StaticObject>,
         ReadStorage<'a, Deleted>,
     );
 
-    fn run(&mut self, (entities, lazy, mut transport, new_player, named, object_data, deleted): Self::SystemData) {
+    fn run(&mut self, (entities, lazy, mut transport, new_player, named, object_data, static_flag): Self::SystemData) {
         #[cfg(feature = "profiler")]
         profile_scope!("player join");
 
@@ -149,7 +149,7 @@ impl<'a> System<'a> for SendInitialPackets {
                 )
             }
 
-            let bitset = (&entities, &object_data, !&deleted)
+            let bitset = (&entities, &object_data, &static_flag)
                 .join()
                 .fold(BitSet::new(), |mut bitset, (entity, ..)| {
                     bitset.add(entity.id());

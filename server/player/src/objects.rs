@@ -253,7 +253,7 @@ impl<'a> System<'a> for RegionUpdateSystem {
         for (player, visible_regions, visible_objects, updates) in player_with_updates {
             for (clear_region, grouped_updates) in updates {
                 if let Some(clear_region) = clear_region {
-                    //net.send(player, clear_region);
+                    net.send(player, clear_region);
                 }
                 if let Some(grouped_updates) = grouped_updates {
                     net.send(player, grouped_updates);
@@ -902,14 +902,11 @@ mod tests {
 
                     let mut ep: Vec<&GameplayEvent> = expected_packets.iter().collect();
                     let first = packets == &ep;
-                    dbg!(&packets);
-                    dbg!(&ep);
                     let (c_a, u_a, c_b, u_b) = (ep[0], ep[1], ep[2], ep[3]);
                     ep[0] = c_b;
                     ep[1] = u_b;
                     ep[2] = c_a;
                     ep[3] = u_a;
-                    dbg!(&ep);
                     let second = packets == &ep;
                     assert!(first || second, "Packet ordering is wrong");
                 }

@@ -53,8 +53,8 @@ impl Viewport {
         let max_vx = min_vx + VIEWPORT_SIZE;
         let max_vy = min_vy + VIEWPORT_SIZE;
 
-        (min_vx..=max_vx).contains(&position.get_x())
-            && (min_vy..=max_vy).contains(&position.get_y())
+        (min_vx..max_vx).contains(&position.get_x())
+            && (min_vy..max_vy).contains(&position.get_y())
     }
 }
 
