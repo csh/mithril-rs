@@ -1,9 +1,10 @@
 use amethyst::{
     core::{bundle::SystemBundle, Named, SystemDesc},
     ecs::{
-        DispatcherBuilder, Entities, Entity, LazyUpdate, Read, ReadExpect, ReadStorage, System,
+        Builder, Entities, Entity, LazyUpdate, Read, ReadExpect, ReadStorage, System,
         SystemData, World, Write, WriteStorage,
         Join,
+        WorldExt,
     },
     network::simulation::{NetworkSimulationEvent, TransportResource},
     shrev::{EventChannel, ReaderId},
@@ -11,12 +12,13 @@ use amethyst::{
 };
 
 use mithril_core::{
-    pos::Position,
+    pos::{Position, Direction},
     net::packets::{
         GameplayEvent,
         PacketEvent,
         ForceChat,
         Animation,
+        ObjectType,
     },
 
 };
@@ -60,10 +62,10 @@ impl<'a> System<'a> for InteractSystem {
                     None => continue    
                 };
 
-                let entity = (&entities, &object_data, &position)
+                let entity = (&entities, &object_data, &position, !&deleted)
                     .join()
-                    .filter(|(_, _, position)| position.x as u16 == action.x && position.y as u16 == action.y)
-                    .filter(|(_, data, _)| {
+                    .filter(|(_, _, position, _)| position.x as u16 == action.x && position.y as u16 == action.y)
+                    .filter(|(_, data, _, _)| {
                         match data {
                             WorldObjectData::Object {
                                 id,
@@ -72,7 +74,7 @@ impl<'a> System<'a> for InteractSystem {
                             _ => false
                         }
                     })
-                    .map(|(entity, data, pos)| (entity, pos, data))
+                    .map(|(entity, data, pos, _)| (entity, pos, data))
                     .nth(0);
 
                 let (entity, pos, data) = match entity {
@@ -82,12 +84,12 @@ impl<'a> System<'a> for InteractSystem {
 
                 if action_str == "Open" && def.name == "Door" {
                     updates.get_mut(*player).unwrap().0.push(ForceChat {
-                        message: "BOOM".to_owned(),
+                        message: "BOOM!!!".to_owned(),
                     }.into());
                     updates.get_mut(*player).unwrap().0.push(Animation {
                         id: 422,
                         delay: 0,
-                    }.into());
+                    }.into()); 
 
                     deleted.insert(entity, Deleted).expect("Oof");
                 }
