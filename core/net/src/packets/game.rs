@@ -646,7 +646,7 @@ impl Packet for Walk {
         for _ in 0..steps {
             path.push((src.get_i8() as i16, src.get_i8() as i16));
         }
-        let y = src.get_i16_le();
+        let y = src.get_u16_le() as i16;
         self.running = src.get_u8t(Transform::Negate) == 1;
         self.path = path
             .iter()

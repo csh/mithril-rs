@@ -51,10 +51,7 @@ pub fn encode_packet(
             "packet length is fixed but did not match"
         ),
         Some(PacketLength::VariableByte) => dst.put_u8(encoding_buf.len() as u8),
-        Some(PacketLength::VariableShort) => {
-            dbg!(packet_type);
-            dst.put_u16(encoding_buf.len() as u16)
-        }
+        Some(PacketLength::VariableShort) => dst.put_u16(encoding_buf.len() as u16),
         None => {}
     }
     dst.extend_from_slice(encoding_buf);

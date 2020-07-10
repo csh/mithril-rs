@@ -653,6 +653,7 @@ impl PacketType {
             PacketType::PublicChat => Some(PacketLength::VariableByte),
             PacketType::FlaggedMouseEvent => Some(PacketLength::VariableByte),
             PacketType::Walk => Some(PacketLength::VariableByte),
+            PacketType::WalkWithAnticheat => Some(PacketLength::VariableByte),
             PacketType::Command => Some(PacketLength::VariableByte),
             PacketType::PrivateChat => Some(PacketLength::VariableByte),
             PacketType::ServerMessage => Some(PacketLength::VariableByte),
